@@ -1,0 +1,277 @@
+Product Requirements Document (PRD) 
+Project: Operations Management System 
+Client: Dominion Seedstars Nig LTD  
+Date: November 2025 
+Prepared by:  Isabi Technologies 
+1. Overview 
+Dominion Seedstars Nig LTD operates through multiple branches across Nigeria. The Head 
+Office (HO) oversees and manages the financial and operational performance of each Branch 
+(BR). 
+The goal of this system is to automate branch daily reporting, provide real-time visibility 
+into financial and loan operations, and simplify reconciliation between Head Office and 
+branches. 
+2. Objectives 
+● Enable branches to input daily operations data (savings, loan collection, disbursement, 
+withdrawals, etc.) 
+● Allow Head Office to track and monitor each branch’s daily performance 
+● Automatically compute totals, summaries, and cash flow balances 
+● Provide both HO and BR with dashboards reflecting real-time metrics 
+● Eliminate manual reporting (Excel) by replacing it with a centralized web system 
+3. System Roles 
+Role 
+Head 
+Office (HO) 
+Branch 
+(BR) 
+Description 
+Oversees all branch 
+operations 
+Manages daily operations 
+and inputs daily financial 
+data 
+Permissions 
+Create/edit branch profiles, input control fields 
+(non-editable to branches), view all dashboards, 
+receive notifications 
+Input daily cashbook data, prediction, expenses, 
+and view summaries 
+4. Core Modules and Features 
+4.1. Authentication & Access Control 
+● Login/Signup (Role-based): HO and BR login with unique credentials. 
+● HO Functions: 
+○ Create branch profiles 
+○ Assign usernames and passwords 
+○ Activate/deactivate branches 
+● Branch Functions: 
+○ Login with assigned credentials 
+○ Manage own branch data 
+● Email Notifications: 
+○ HO receives an email when a branch logs in (via Brevo integration) 
+5. Functional Modules 
+5.1 Cashbook 1 (Daily Input by Branch) 
+Branches input the following daily fields (numeric only): 
+Field 
+PCIH 
+Savings 
+Loan 
+Collection 
+Charges 
+Collection 
+Total 
+FRM HO 
+FRM BR 
+Description 
+Previous Cash in Hand 
+Total daily client savings 
+Total daily loan collections 
+Daily service/processing 
+fees 
+Computed 
+Fund received from HO 
+Fund received from other 
+branches 
+CB TOTAL 1 Cashbook Total 1 
+Editable 
+By 
+BR 
+BR 
+BR 
+BR 
+System 
+HO 
+HO 
+System 
+Logic 
+Manual input 
+Manual input 
+Manual input 
+Manual input 
+Savings + Loan Collection 
++ Charges 
+Non-editable by BR 
+Non-editable by BR 
+PCIH + Savings + Loan + 
+Charges + FRM HO + FRM BR 
+5.2 Cashbook 2 (Daily Input by Branch) 
+Branches input the following: 
+Field 
+DIS NO 
+DIS AMT 
+Description 
+Number of clients disbursed 
+to 
+Total daily disbursement 
+amount 
+Editable 
+By 
+BR 
+BR 
+DIS WIT INT Disbursement with interest BR 
+SAV WITH Savings withdrawal 
+DOMI BANK Total available cash at 
+branch 
+POS/T 
+CB TOTAL 
+2 
+POS transfers received 
+Cashbook Total 2 
+BR 
+BR 
+BR 
+System 
+Logic 
+Manual input 
+Manual input 
+Manual input 
+Manual input 
+Manual input 
+Manual input 
+DIS AMT + SAV WITH + DOMI 
+BANK + POS/T 
+5.3 Online Cash in Hand (ONLINE CIH) 
+Field 
+Description 
+ONLINE CIH Current Cash In 
+Hand 
+Logic 
+CB TOTAL 1 - CB 
+TOTAL 2 
+Viewable By 
+Both HO & BR 
+5.4 Loan Register (Current Branch Register – Loan) 
+Field 
+Current 
+Loan 
+Balance 
+Previous 
+Loan Total 
+Description 
+Ongoing loan 
+status 
+HO will input 
+manually monthly 
+Logic 
+(Previous total loan disbursed * 
+(HO Input)) + Loan disbursement 
+with interest - Loan collection 
+HO 
+Editable 
+By 
+System - 
+5.5 Savings Register (Current Branch Register – Savings) 
+Field 
+Current 
+Savings 
+Previous 
+Savings Total 
+Description 
+Net total branch 
+savings 
+Previous period 
+total 
+Logic 
+Savings (from Cashbook 1) + 
+Previous total savings (HO input) - Savings withdrawal (from 
+Cashbook 2) 
+HO 
+Editable 
+By 
+System - 
+5.6 Prediction (Next Day Projection) 
+Field 
+PREDICTION NO 
+Description 
+Number of clients expected to disburse to 
+tomorrow 
+PREDICTION AMOUNT Total projected disbursement amount 
+Editable By 
+BR 
+BR 
+5.7 Bank Statement 1st (BS1) 
+Field 
+OPENING 
+REC HO 
+REC BO 
+DOMI 
+P.A 
+Description 
+Always starts at 0 
+From FRM HO (Cashbook 1) 
+From FRM BR (Cashbook 1) 
+From DOMI BANK (Cashbook 2) System 
+From POS/T (Cashbook 2) 
+BS1 TOTAL System-calculated total 
+Source 
+Fixed 
+System 
+System 
+System 
+OPENING + REC HO + REC BO + 
+DOMI + P.A 
+5.8 Bank Statement 2nd (BS2) 
+Field 
+WITHD 
+T.B.O 
+EX AMT 
+Description 
+From FRM HO field (Cashbook 1) 
+Transfers between branches (specify target 
+branch) 
+Branch daily expenses 
+EX PURPOSE Expense description 
+BS2 TOTAL 
+System total 
+Editable By 
+System 
+HO 
+BR 
+BR 
+WITHD + T.B.O + 
+EX AMT 
+5.9 Transfer to Senate Office (T.S.O) 
+Field 
+Description 
+Logic 
+T.S.O End-of-day remittance BS1 - 
+BS2 
+Viewable By 
+Both HO & BR 
+5.10 Disbursement Roll 
+Field 
+Disbursement 
+Roll 
+Description 
+Monthly loan flow 
+summary 
+Logic 
+Previous Disbursement (HO input) + 
+Daily Disbursement (DIS AMT from 
+Cashbook 2) 
+6. Dashboards 
+6.1 Branch Dashboard 
+● View daily inputs and computed totals 
+● Submit or edit daily entries before cutoff time 
+● Visual summary (charts for savings vs withdrawals, disbursement trend, etc.) 
+● View computed CIH, BS1, BS2, and TSO 
+● Predict next-day activity 
+6.2 Head Office Dashboard 
+● View performance summary for all branches 
+● Drill-down by branch or date 
+● Edit HO-only fields (FRM HO, FRM BR, T.B.O, Previous totals, etc.) 
+● Receive email when a branch logs in 
+● Export daily reports as Excel/PDF 
+7. Reports 
+● Daily Branch Report: Auto-generated from daily cashbooks 
+● Monthly Summary: Shows loan/savings movement, TSO, disbursements 
+● HO Consolidated Report: Aggregates all branches 
+11. Acceptance Criteria 
+✅
+ HO can view, manage, and track all branches 
+✅
+ Branch can input and view daily operational data 
+✅
+ All formulas auto-calculate correctly 
+✅
+ Email triggers when branch logs in 
+✅
+ Reports are exportable and accessible 
