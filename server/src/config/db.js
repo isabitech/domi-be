@@ -1,8 +1,13 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(process.env.MONGODB_URI, {
+    const uri = process.env.MONGODB_URI || process.env.MONGO_URI;
+    if (!uri) {
+      console.error('Missing MONGODB_URI (or MONGO_URI) in environment');
+      process.exit(1);
+    }
+    const conn = await mongoose.connect(uri, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     });
@@ -13,4 +18,4 @@ const connectDB = async () => {
   }
 };
 
-module.exports = connectDB;
+export default connectDB;

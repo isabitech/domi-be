@@ -1,0 +1,12 @@
+{
+  "name": "domi-be",
+  "private": true,
+  "version": "0.0.0",
+  "workspaces": ["server"],
+  "scripts": {
+    "dev": "npm --workspace server run dev",
+    "start": "npm --workspace server run start",
+    "test": "npm --workspace server run test",
+    "lint": "npm --workspace server run lint || echo 'No lint script defined in server'"
+  }
+}
