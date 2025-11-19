@@ -7,4 +7,4 @@ router.use(protect);
 router.get('/bs1', requirePermission('bankstatements:view'), bankStatementController.getBS1);
 router.get('/bs2', requirePermission('bankstatements:view'), bankStatementController.getBS2);
 router.patch('/bs2/tbo', requirePermission('bankstatements:modify'), bankStatementController.updateTBO);
-export default router;
+export default router

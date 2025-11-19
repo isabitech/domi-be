@@ -7,6 +7,14 @@ const userSchema = new mongoose.Schema({
     required: [true, 'Name is required'],
     trim: true
   },
+  username: {
+    type: String,
+    unique: true,
+    sparse: true,
+    trim: true,
+    minlength: 3,
+    maxlength: 50
+  },
   email: {
     type: String,
     required: [true, 'Email is required'],
@@ -17,7 +25,7 @@ const userSchema = new mongoose.Schema({
   password: {
     type: String,
     required: [true, 'Password is required'],
-    minlength: 6
+    minlength: 8
   },
   role: {
     type: String,
@@ -29,6 +37,16 @@ const userSchema = new mongoose.Schema({
     ref: 'Branch'
   },
   isActive: {
+    type: Boolean,
+    default: true
+  },
+  status: {
+    type: String,
+    enum: ['active', 'inactive', 'suspended'],
+    default: 'active'
+  },
+  lastLogin: Date,
+  isFirstLogin: {
     type: Boolean,
     default: true
   },

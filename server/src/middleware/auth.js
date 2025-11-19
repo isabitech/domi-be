@@ -1,5 +1,7 @@
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import User from '../models/User.js';
+import RevokedToken from '../models/RevokedToken.js';
 import { AuthError, ForbiddenError } from '../utils/errors.js';
 
 // Protect routes
@@ -18,8 +20,16 @@ export const protect = async (req, _res, next) => {
   }
 
   try {
-    // Verify token
+    // Verify token signature and expiration
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    // Check blacklist (store hash for safety)
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const revoked = await RevokedToken.findOne({ tokenHash });
+    if (revoked) return next(new AuthError('Not authorized: token revoked'));
+
+    // Attach raw token for logout use
+    req.token = token;
 
     req.user = await User.findById(decoded.id).populate('branch');
 

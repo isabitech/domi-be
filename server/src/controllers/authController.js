@@ -15,7 +15,7 @@ class AuthController {
 
   getMe = asyncHandler(async (req, res) => {
     const user = await authService.getMe(req.user.id);
-    success(res, { user }, 'Profile fetched');
+    success(res, user, 'Profile fetched');
   });
 
   forgotPassword = asyncHandler(async (req, res) => {
@@ -29,6 +29,12 @@ class AuthController {
       req.body.password
     );
     success(res, result, 'Password reset successful');
+  });
+
+  logout = asyncHandler(async (req, res) => {
+    const rawToken = req.token || (req.headers.authorization && req.headers.authorization.split(' ')[1]);
+    await authService.revokeToken(rawToken);
+    success(res, {}, 'Logged out successfully');
   });
 }
 

@@ -1,0 +1,154 @@
+{
+  "info": {
+    "name": "Dominion Seedstars API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Comprehensive Postman collection for the Dominion Seedstars API. Set {{base_url}} and {{bearer_token}} before running authenticated requests."
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:5000/api/v1" },
+    { "key": "bearer_token", "value": "" },
+    { "key": "USER_ID", "value": "" },
+    { "key": "BRANCH_ID", "value": "" },
+    { "key": "ENTRY_ID", "value": "" },
+    { "key": "RESET_TOKEN", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        { "name": "Register", "request": { "method": "POST", "header": [ { "key": "Content-Type", "value": "application/json" } ], "body": { "mode": "raw", "raw": "{\"username\":\"admin\",\"email\":\"admin@example.com\",\"password\":\"Password123!\",\"role\":\"HO\"}" }, "url": { "raw": "{{base_url}}/auth/register", "host": ["{{base_url}}"], "path": ["auth","register"] } } },
+        { "name": "Login", "request": { "method": "POST", "header": [ { "key": "Content-Type", "value": "application/json" } ], "body": { "mode": "raw", "raw": "{\"email\":\"admin@example.com\",\"password\":\"Password123!\"}" }, "url": { "raw": "{{base_url}}/auth/login", "host": ["{{base_url}}"], "path": ["auth","login"] } } },
+        { "name": "Forgot Password", "request": { "method": "POST", "header": [ { "key": "Content-Type", "value": "application/json" } ], "body": { "mode": "raw", "raw": "{\"email\":\"admin@example.com\"}" }, "url": { "raw": "{{base_url}}/auth/forgot-password", "host": ["{{base_url}}"], "path": ["auth","forgot-password"] } } },
+        { "name": "Reset Password", "request": { "method": "PUT", "header": [ { "key": "Content-Type", "value": "application/json" } ], "body": { "mode": "raw", "raw": "{\"password\":\"NewPass123!\"}" }, "url": { "raw": "{{base_url}}/auth/reset-password/{{RESET_TOKEN}}", "host": ["{{base_url}}"], "path": ["auth","reset-password","{{RESET_TOKEN}}"] } } },
+        { "name": "Me", "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "url": { "raw": "{{base_url}}/auth/me", "host": ["{{base_url}}"], "path": ["auth","me"] } } },
+        { "name": "Logout", "request": { "method": "POST", "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "url": { "raw": "{{base_url}}/auth/logout", "host": ["{{base_url}}"], "path": ["auth","logout"] } } }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        { "name": "List Users", "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "url": { "raw": "{{base_url}}/users?page=1&limit=20", "host": ["{{base_url}}"], "path": ["users"], "query": [ { "key": "page", "value": "1" }, { "key": "limit", "value": "20" } ] } } },
+        { "name": "Create User", "request": { "method": "POST", "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "body": { "mode": "raw", "raw": "{\"username\":\"newuser\",\"email\":\"newuser@example.com\",\"password\":\"Password123!\",\"role\":\"BR\",\"branchId\":null}" }, "url": { "raw": "{{base_url}}/users", "host": ["{{base_url}}"], "path": ["users"] } } },
+        { "name": "Get User", "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "url": { "raw": "{{base_url}}/users/{{USER_ID}}", "host": ["{{base_url}}"], "path": ["users","{{USER_ID}}"] } } },
+        { "name": "Update User", "request": { "method": "PUT", "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "body": { "mode": "raw", "raw": "{\"email\":\"updated@example.com\",\"status\":\"active\"}" }, "url": { "raw": "{{base_url}}/users/{{USER_ID}}", "host": ["{{base_url}}"], "path": ["users","{{USER_ID}}"] } } },
+        { "name": "Delete User", "request": { "method": "DELETE", "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "url": { "raw": "{{base_url}}/users/{{USER_ID}}", "host": ["{{base_url}}"], "path": ["users","{{USER_ID}}"] } } }
+      ]
+    },
+    {
+      "name": "Branches",
+      "item": [
+        { "name": "List Branches", "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "url": { "raw": "{{base_url}}/branches", "host": ["{{base_url}}"], "path": ["branches"] } } },
+        { "name": "Create Branch", "request": { "method": "POST", "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "body": { "mode": "raw", "raw": "{\"name\":\"Main Branch\",\"code\":\"LG001\",\"address\":\"123 Main St\",\"phone\":\"+234-800-000-0000\",\"email\":\"branch@example.com\"}" }, "url": { "raw": "{{base_url}}/branches", "host": ["{{base_url}}"], "path": ["branches"] } } },
+        { "name": "Get Branch", "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "url": { "raw": "{{base_url}}/branches/{{BRANCH_ID}}", "host": ["{{base_url}}"], "path": ["branches","{{BRANCH_ID}}"] } } },
+        { "name": "Update Branch", "request": { "method": "PUT", "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "body": { "mode": "raw", "raw": "{\"phone\":\"+234-800-000-0001\"}" }, "url": { "raw": "{{base_url}}/branches/{{BRANCH_ID}}", "host": ["{{base_url}}"], "path": ["branches","{{BRANCH_ID}}"] } } },
+        { "name": "Toggle Branch Status", "request": { "method": "PATCH", "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "body": { "mode": "raw", "raw": "{\"status\":\"active\"}" }, "url": { "raw": "{{base_url}}/branches/{{BRANCH_ID}}/toggle-status", "host": ["{{base_url}}"], "path": ["branches","{{BRANCH_ID}}","toggle-status"] } } },
+        { "name": "Delete Branch", "request": { "method": "DELETE", "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "url": { "raw": "{{base_url}}/branches/{{BRANCH_ID}}", "host": ["{{base_url}}"], "path": ["branches","{{BRANCH_ID}}"] } } }
+      ]
+    },
+    {
+      "name": "Cashbook",
+      "item": [
+        { "name": "Create Entry", "request": { "method": "POST", "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "body": { "mode": "raw", "raw": "{\"branchId\":\"{{BRANCH_ID}}\",\"date\":\"2025-11-01\",\"cashbook1\":{}}" }, "url": { "raw": "{{base_url}}/cashbook", "host": ["{{base_url}}"], "path": ["cashbook"] } } },
+        { "name": "List Entries", "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "url": { "raw": "{{base_url}}/cashbook?page=1&limit=20", "host": ["{{base_url}}"], "path": ["cashbook"], "query": [ { "key": "page", "value": "1" }, { "key": "limit", "value": "20" } ] } } },
+        { "name": "Get Entry", "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "url": { "raw": "{{base_url}}/cashbook/{{ENTRY_ID}}", "host": ["{{base_url}}"], "path": ["cashbook","{{ENTRY_ID}}"] } } },
+        { "name": "Get By Branch & Date (compat)", "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "url": { "raw": "{{base_url}}/cashbook/{{BRANCH_ID}}/2025-11-01", "host": ["{{base_url}}"], "path": ["cashbook","{{BRANCH_ID}}","2025-11-01"] } } },
+        { "name": "Update Entry", "request": { "method": "PUT", "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "body": { "mode": "raw", "raw": "{\"cashbook1\":{}}" }, "url": { "raw": "{{base_url}}/cashbook/{{ENTRY_ID}}", "host": ["{{base_url}}"], "path": ["cashbook","{{ENTRY_ID}}"] } } },
+        { "name": "Update Entry Status", "request": { "method": "PATCH", "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "body": { "mode": "raw", "raw": "{\"status\":\"approved\"}" }, "url": { "raw": "{{base_url}}/cashbook/{{ENTRY_ID}}/status", "host": ["{{base_url}}"], "path": ["cashbook","{{ENTRY_ID}}","status"] } } }
+      ]
+    },
+    {
+      "name": "Reports",
+      "item": [
+        { "name": "Financial (compat)", "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "url": { "raw": "{{base_url}}/reports/financial?startDate=2025-11-01&endDate=2025-11-19&branchId=all", "host": ["{{base_url}}"], "path": ["reports","financial"] } } },
+        { "name": "Daily Report", "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "url": { "raw": "{{base_url}}/reports/daily?date=2025-11-19", "host": ["{{base_url}}"], "path": ["reports","daily"] } } },
+        { "name": "Daily Export", "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "url": { "raw": "{{base_url}}/reports/daily/export?date=2025-11-19&format=csv", "host": ["{{base_url}}"], "path": ["reports","daily","export"] } } },
+        { "name": "Monthly Report", "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "url": { "raw": "{{base_url}}/reports/monthly?month=2025-11", "host": ["{{base_url}}"], "path": ["reports","monthly"] } } },
+        { "name": "Monthly Export", "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "url": { "raw": "{{base_url}}/reports/monthly/export?month=2025-11&format=csv", "host": ["{{base_url}}"], "path": ["reports","monthly","export"] } } },
+        { "name": "Consolidated Report", "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "url": { "raw": "{{base_url}}/reports/consolidated?startDate=2025-11-01&endDate=2025-11-19", "host": ["{{base_url}}"], "path": ["reports","consolidated"] } } },
+        { "name": "Consolidated Export", "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "url": { "raw": "{{base_url}}/reports/consolidated/export?startDate=2025-11-01&endDate=2025-11-19&format=csv", "host": ["{{base_url}}"], "path": ["reports","consolidated","export"] } } },
+        { "name": "Custom Report (POST)", "request": { "method": "POST", "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "body": { "mode": "raw", "raw": "{\"from\":\"2025-10-01\",\"to\":\"2025-10-31\"}" }, "url": { "raw": "{{base_url}}/reports/custom", "host": ["{{base_url}}"], "path": ["reports","custom"] } } },
+        { "name": "Custom Export", "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "url": { "raw": "{{base_url}}/reports/custom/export?from=2025-10-01&to=2025-10-31&format=csv", "host": ["{{base_url}}"], "path": ["reports","custom","export"] } } }
+      ]
+    },
+    {
+      "name": "Metrics",
+      "item": [
+        { "name": "Online CIH TSO", "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "url": { "raw": "{{base_url}}/metrics/online-cih-tso?date=2025-11-19", "host": ["{{base_url}}"], "path": ["metrics","online-cih-tso"] } } }
+      ]
+    },
+    {
+      "name": "Operations",
+      "item": [
+        { "name": "Get Daily Operations", "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "url": { "raw": "{{base_url}}/operations/daily?date=2025-11-19&branchId={{BRANCH_ID}}", "host": ["{{base_url}}"], "path": ["operations","daily"], "query": [ { "key": "date", "value": "2025-11-19" }, { "key": "branchId", "value": "{{BRANCH_ID}}" } ] } } },
+        { "name": "Create Daily Operations", "request": { "method": "POST", "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "body": { "mode": "raw", "raw": "{\"date\":\"2025-11-19\",\"branchId\":\"{{BRANCH_ID}}\",\"tsoData\":[] }" }, "url": { "raw": "{{base_url}}/operations/daily", "host": ["{{base_url}}"], "path": ["operations","daily"] } } },
+        { "name": "Submit Daily Operations", "request": { "method": "PATCH", "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "body": { "mode": "raw", "raw": "{\"submittedBy\":\"{{USER_ID}}\" }" }, "url": { "raw": "{{base_url}}/operations/daily/{{ENTRY_ID}}/submit", "host": ["{{base_url}}"], "path": ["operations","daily","{{ENTRY_ID}}","submit"] } } },
+        { "name": "HO Fields (PATCH)", "request": { "method": "PATCH", "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "body": { "mode": "raw", "raw": "{\"field1\":\"value\" }" }, "url": { "raw": "{{base_url}}/operations/ho-fields", "host": ["{{base_url}}"], "path": ["operations","ho-fields"] } } },
+        { "name": "Operations History", "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "url": { "raw": "{{base_url}}/operations/history?page=1&limit=20", "host": ["{{base_url}}"], "path": ["operations","history"], "query": [ { "key": "page", "value": "1" }, { "key": "limit", "value": "20" } ] } } }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "item": [
+        { "name": "Branch Dashboard", "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "url": { "raw": "{{base_url}}/dashboard/branch?branchId={{BRANCH_ID}}&date=2025-11-19", "host": ["{{base_url}}"], "path": ["dashboard","branch"], "query": [ { "key": "branchId", "value": "{{BRANCH_ID}}" }, { "key": "date", "value": "2025-11-19" } ] } } },
+        { "name": "HO Dashboard", "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "url": { "raw": "{{base_url}}/dashboard/ho?date=2025-11-19", "host": ["{{base_url}}"], "path": ["dashboard","ho"], "query": [ { "key": "date", "value": "2025-11-19" } ] } } }
+      ]
+    },
+    {
+      "name": "Registers",
+      "item": [
+        { "name": "Loan Register", "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "url": { "raw": "{{base_url}}/registers/loan", "host": ["{{base_url}}"], "path": ["registers","loan"] } } },
+        { "name": "Savings Register", "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "url": { "raw": "{{base_url}}/registers/savings", "host": ["{{base_url}}"], "path": ["registers","savings"] } } },
+        { "name": "Update Previous Register Values", "request": { "method": "PATCH", "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "body": { "mode": "raw", "raw": "{\"previous\": 1000 }" }, "url": { "raw": "{{base_url}}/registers/previous", "host": ["{{base_url}}"], "path": ["registers","previous"] } } }
+      ]
+    },
+    {
+      "name": "Bank Statements",
+      "item": [
+        { "name": "Get BS1", "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "url": { "raw": "{{base_url}}/bank-statements/bs1", "host": ["{{base_url}}"], "path": ["bank-statements","bs1"] } } },
+        { "name": "Get BS2", "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "url": { "raw": "{{base_url}}/bank-statements/bs2", "host": ["{{base_url}}"], "path": ["bank-statements","bs2"] } } },
+        { "name": "Update TBO (BS2)", "request": { "method": "PATCH", "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "body": { "mode": "raw", "raw": "{\"tbo\":5000}" }, "url": { "raw": "{{base_url}}/bank-statements/bs2/tbo", "host": ["{{base_url}}"], "path": ["bank-statements","bs2","tbo"] } } }
+      ]
+    },
+    {
+      "name": "Prediction",
+      "item": [
+        { "name": "Get Predictions", "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "url": { "raw": "{{base_url}}/prediction?branchId={{BRANCH_ID}}&date=2025-11-19", "host": ["{{base_url}}"], "path": ["prediction"] } } },
+        { "name": "Create Prediction", "request": { "method": "POST", "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "body": { "mode": "raw", "raw": "{\"branchId\":\"{{BRANCH_ID}}\",\"forecast\":12345}" }, "url": { "raw": "{{base_url}}/prediction", "host": ["{{base_url}}"], "path": ["prediction"] } } }
+      ]
+    },
+    {
+      "name": "Disbursement Roll",
+      "item": [
+        { "name": "Get Roll", "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "url": { "raw": "{{base_url}}/disbursement-roll?date=2025-11-01", "host": ["{{base_url}}"], "path": ["disbursement-roll"] } } },
+        { "name": "Update Previous Disbursement", "request": { "method": "PATCH", "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "body": { "mode": "raw", "raw": "{\"previous\":10000}" }, "url": { "raw": "{{base_url}}/disbursement-roll/previous", "host": ["{{base_url}}"], "path": ["disbursement-roll","previous"] } } }
+      ]
+    },
+    {
+      "name": "Settings",
+      "item": [
+        { "name": "Get System Settings", "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "url": { "raw": "{{base_url}}/settings/system", "host": ["{{base_url}}"], "path": ["settings","system"] } } },
+        { "name": "Update System Settings", "request": { "method": "PUT", "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "body": { "mode": "raw", "raw": "{\"appName\":\"Dominion Ops\"}" }, "url": { "raw": "{{base_url}}/settings/system", "host": ["{{base_url}}"], "path": ["settings","system"] } } },
+        { "name": "Get Financial Settings", "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "url": { "raw": "{{base_url}}/settings/financial", "host": ["{{base_url}}"], "path": ["settings","financial"] } } },
+        { "name": "Update Financial Settings", "request": { "method": "PUT", "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "body": { "mode": "raw", "raw": "{\"taxRate\":7.5}" }, "url": { "raw": "{{base_url}}/settings/financial", "host": ["{{base_url}}"], "path": ["settings","financial"] } } },
+        { "name": "Get Security Settings", "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "url": { "raw": "{{base_url}}/settings/security", "host": ["{{base_url}}"], "path": ["settings","security"] } } },
+        { "name": "Update Security Settings", "request": { "method": "PUT", "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "body": { "mode": "raw", "raw": "{\"passwordMinLength\":8}" }, "url": { "raw": "{{base_url}}/settings/security", "host": ["{{base_url}}"], "path": ["settings","security"] } } },
+        { "name": "Get Notifications Settings", "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "url": { "raw": "{{base_url}}/settings/notifications", "host": ["{{base_url}}"], "path": ["settings","notifications"] } } },
+        { "name": "Update Notifications Settings", "request": { "method": "PUT", "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "body": { "mode": "raw", "raw": "{\"emailEnabled\": true, \"smsEnabled\": false}" }, "url": { "raw": "{{base_url}}/settings/notifications", "host": ["{{base_url}}"], "path": ["settings","notifications"] } } }
+      ]
+    },
+    {
+      "name": "Audit",
+      "item": [
+        { "name": "List Audit Logs", "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "url": { "raw": "{{base_url}}/audit-logs?page=1&limit=20", "host": ["{{base_url}}"], "path": ["audit-logs"], "query": [ { "key": "page", "value": "1" }, { "key": "limit", "value": "20" } ] } } }
+      ]
+    },
+    {
+      "name": "System",
+      "item": [
+        { "name": "Health", "request": { "method": "GET", "url": { "raw": "{{base_url}}/health", "host": ["{{base_url}}"], "path": ["health"] } } },
+        { "name": "Permissions", "request": { "method": "GET", "url": { "raw": "{{base_url}}/permissions", "host": ["{{base_url}}"], "path": ["permissions"] } } },
+        { "name": "System Metrics", "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ], "url": { "raw": "{{base_url}}/system-metrics", "host": ["{{base_url}}"], "path": ["system-metrics"] } } }
+      ]
+    }
+  ]
+}

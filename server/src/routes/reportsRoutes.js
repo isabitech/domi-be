@@ -1,4 +1,5 @@
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 import reportsController from '../controllers/reportsController.js';
 import { protect } from '../middleware/auth.js';
 import { requirePermission } from '../utils/permissions.js';
@@ -7,15 +8,24 @@ import { reportSchemas } from '../validators/reportSchemas.js';
 
 const router = express.Router();
 
+// Export-specific limiter (5 requests/min per user)
+const exportLimiter = rateLimit({
+	windowMs: 60 * 1000,
+	max: 5,
+	keyGenerator: (req) => req.user?.id || req.ip,
+	standardHeaders: true,
+	legacyHeaders: false
+});
+
 router.use(protect); // All routes are protected
 
 router.get('/daily', requirePermission('reports:view'), validate(reportSchemas.daily), reportsController.getDailyReport);
-router.get('/daily/export', requirePermission('reports:export'), validate(reportSchemas.daily), reportsController.exportDailyReport);
+router.get('/daily/export', requirePermission('reports:export'), validate(reportSchemas.daily), exportLimiter, reportsController.exportDailyReport);
 router.get('/monthly', requirePermission('reports:view'), validate(reportSchemas.monthly), reportsController.getMonthlyReport);
-router.get('/monthly/export', requirePermission('reports:export'), validate(reportSchemas.monthly), reportsController.exportMonthlyReport);
+router.get('/monthly/export', requirePermission('reports:export'), validate(reportSchemas.monthly), exportLimiter, reportsController.exportMonthlyReport);
 router.get('/consolidated', requirePermission('reports:consolidated'), validate(reportSchemas.consolidated), reportsController.getConsolidatedReport);
-router.get('/consolidated/export', requirePermission('reports:export'), validate(reportSchemas.consolidated), reportsController.exportConsolidatedReport);
+router.get('/consolidated/export', requirePermission('reports:export'), validate(reportSchemas.consolidated), exportLimiter, reportsController.exportConsolidatedReport);
 router.get('/custom', requirePermission('reports:view'), validate(reportSchemas.custom), reportsController.getCustomReport);
-router.get('/custom/export', requirePermission('reports:export'), validate(reportSchemas.custom), reportsController.exportCustomReport);
+router.get('/custom/export', requirePermission('reports:export'), validate(reportSchemas.custom), exportLimiter, reportsController.exportCustomReport);
 
 export default router;

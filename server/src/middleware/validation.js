@@ -15,7 +15,17 @@ export const validate = (schema) => (req, _res, next) => {
   // Replace validated data
   req.body = value.body;
   req.params = value.params;
-  req.query = value.query;
+  // Some environments have read-only getters for req.query — avoid direct assignment
+  try {
+    req.query = value.query;
+  } catch (e) {
+    // Fallback: copy validated keys into existing req.query object
+    if (value.query && typeof value.query === 'object') {
+      Object.keys(value.query).forEach((k) => {
+        try { req.query[k] = value.query[k]; } catch (_) { /* ignore */ }
+      });
+    }
+  }
   next();
 };
 

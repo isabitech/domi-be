@@ -91,6 +91,18 @@ class CashbookService {
   static async updateEntry(req) {
     let entry = await Cashbook.findById(req.params.id);
     if (!entry) throw new NotFoundError('Cashbook entry not found');
+    // Enforce same-day edits and cutoff hour
+    const entryDate = entry.date || entry.createdAt;
+    const now = new Date();
+    const entryDay = new Date(entryDate.getFullYear(), entryDate.getMonth(), entryDate.getDate());
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (entryDay.getTime() !== today.getTime()) {
+      throw new ValidationError('Can only edit cashbook entries on the same day');
+    }
+    const cutoffHour = (await import('../config/index.js')).config.server.editCutoffHour;
+    if (now.getHours() >= cutoffHour) {
+      throw new ForbiddenError(`Edit window closed after ${cutoffHour}:00`);
+    }
     if (entry.user.toString() !== req.user.id) throw new ForbiddenError('Not authorized to edit this entry');
     if (entry.status === 'approved') throw new ValidationError('Cannot edit approved entries');
 
@@ -110,6 +122,19 @@ class CashbookService {
   static async deleteEntry(req) {
     const entry = await Cashbook.findById(req.params.id);
     if (!entry) throw new NotFoundError('Cashbook entry not found');
+
+    // Enforce same-day delete and cutoff hour
+    const entryDate = entry.date || entry.createdAt;
+    const now = new Date();
+    const entryDay = new Date(entryDate.getFullYear(), entryDate.getMonth(), entryDate.getDate());
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (entryDay.getTime() !== today.getTime()) {
+      throw new ValidationError('Can only delete cashbook entries on the same day');
+    }
+    const cutoffHour = (await import('../config/index.js')).config.server.editCutoffHour;
+    if (now.getHours() >= cutoffHour) {
+      throw new ForbiddenError(`Edit window closed after ${cutoffHour}:00`);
+    }
 
     const canDelete =
       req.user.role === 'admin' ||

@@ -29,7 +29,8 @@ const errorHandler = (err, req, res, _next) => {
     });
   }
 
-  failure(res, err.message, err.statusCode, err.meta?.details);
+  // Use unified failure payload with error object so response maps to spec
+  failure(res, err, err.statusCode);
 };
 
 export default errorHandler;

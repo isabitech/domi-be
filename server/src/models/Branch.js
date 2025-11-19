@@ -33,6 +33,26 @@ const branchSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   },
+  managerEmail: {
+    type: String,
+    lowercase: true,
+    trim: true
+  },
+  managerPassword: {
+    type: String
+  },
+  operationHours: {
+    type: String
+  },
+  dailyLimit: {
+    type: Number,
+    default: 0
+  },
+  status: {
+    type: String,
+    enum: ['active','inactive'],
+    default: 'active'
+  },
   // PRD specific fields for branch operations
   previousLoanTotal: {
     type: Number,

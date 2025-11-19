@@ -16,6 +16,18 @@ router
 
 router.get('/reports/summary', requirePermission('cashbook:view'), validate(cashbookSchemas.summary), cashbookController.getCashbookSummary);
 
+// Compatibility route per spec: GET /cashbook/:branchId/:date
+router.get('/:branchId/:date', requirePermission('cashbook:view'), async (req, res, next) => {
+  try {
+    const { branchId, date } = req.params;
+    // clone request to avoid mutating possible read-only req.query
+    const clonedReq = Object.assign({}, req, { query: Object.assign({}, req.query, { branch: branchId, startDate: date, endDate: date }) });
+    return cashbookController.getCashbookEntries(clonedReq, res, next);
+  } catch (err) {
+    next(err);
+  }
+});
+
 router
   .route('/:id')
   .get(requirePermission('cashbook:view'), validate(cashbookSchemas.get), cashbookController.getCashbookEntry)
