@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const predictionSchema = new mongoose.Schema({
   branch: {
@@ -38,4 +38,4 @@ const predictionSchema = new mongoose.Schema({
 predictionSchema.index({ branch: 1, predictionDate: -1 });
 predictionSchema.index({ branch: 1, date: -1 });
 
-module.exports = mongoose.model('Prediction', predictionSchema);
+export default mongoose.model('Prediction', predictionSchema);

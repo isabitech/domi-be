@@ -1,4 +1,15 @@
-const mongoose = require('mongoose');
+
+/**
+ * PRD Formula: Disbursement Roll
+ * disbursementRoll = previousDisbursement + dailyDisbursement
+ * - previousDisbursement: HO input (monthly)
+ * - dailyDisbursement: sum of Cashbook2.disAmt for the month (system accumulated)
+ * Permissions:
+ *   - previousDisbursement: HO can edit
+ *   - dailyDisbursement: system accumulated from daily ops
+ *   - disbursementRoll: system calculated, viewable by both HO and BR
+ */
+import mongoose from 'mongoose';
 
 const disbursementRollSchema = new mongoose.Schema({
   branch: {
@@ -39,4 +50,4 @@ disbursementRollSchema.pre('save', function(next) {
 // Index for better query performance
 disbursementRollSchema.index({ branch: 1, year: -1, month: -1 });
 
-module.exports = mongoose.model('DisbursementRoll', disbursementRollSchema);
+export default mongoose.model('DisbursementRoll', disbursementRollSchema);

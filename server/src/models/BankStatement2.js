@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const bankStatement2Schema = new mongoose.Schema({
   branch: {
@@ -54,4 +54,4 @@ bankStatement2Schema.pre('save', function(next) {
 bankStatement2Schema.index({ branch: 1, date: -1 });
 bankStatement2Schema.index({ user: 1, date: -1 });
 
-module.exports = mongoose.model('BankStatement2', bankStatement2Schema);
+export default mongoose.model('BankStatement2', bankStatement2Schema);

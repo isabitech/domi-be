@@ -1,23 +1,24 @@
-const dotenv = require('dotenv');
+import dotenv from 'dotenv';
+import app from './app.js';
+import connectDB from './config/db.js';
+import mongoose from 'mongoose';
+import config from './config/index.js';
 
 // Load env vars
 dotenv.config();
 
-const app = require('./app');
-const connectDB = require('./config/db');
-
 // Connect to database
 connectDB();
 
-const PORT = process.env.PORT || 5000;
+const PORT = config.server.port;
 
 const server = app.listen(PORT, () => {
-  console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
+  console.log(`Server running in ${config.env} mode on port ${PORT}`);
 });
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err, promise) => {
-  console.log(`Error: ${err.message}`);
+  console.error(`Error: ${err?.message || err}`);
   // Close server & exit process
   server.close(() => {
     process.exit(1);
@@ -26,16 +27,26 @@ process.on('unhandledRejection', (err, promise) => {
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (err) => {
-  console.log(`Error: ${err.message}`);
-  console.log('Shutting down the server due to uncaught exception');
+  console.error(`Error: ${err?.message || err}`);
+  console.error('Shutting down the server due to uncaught exception');
   process.exit(1);
 });
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received');
-  console.log('Shutting down gracefully');
-  server.close(() => {
-    console.log('Process terminated');
+async function shutdown(signal) {
+  console.log(`${signal} received. Shutting down gracefully...`);
+  server.close(async () => {
+    try {
+      await mongoose.connection.close();
+      console.log('Database connection closed');
+    } catch (e) {
+      console.error('Error closing DB connection', e.message);
+    } finally {
+      process.exit(0);
+    }
   });
+}
+
+['SIGINT','SIGTERM'].forEach(sig => {
+  process.on(sig, () => shutdown(sig));
 });

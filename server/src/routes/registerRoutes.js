@@ -1,0 +1,10 @@
+import express from 'express';
+import registerController from '../controllers/registerController.js';
+import { protect } from '../middleware/auth.js';
+import { requirePermission } from '../utils/permissions.js';
+const router = express.Router();
+router.use(protect);
+router.get('/loan', requirePermission('registers:view'), registerController.getLoanRegister);
+router.get('/savings', requirePermission('registers:view'), registerController.getSavingsRegister);
+router.patch('/previous', requirePermission('registers:modify'), registerController.updatePreviousValues);
+export default router;

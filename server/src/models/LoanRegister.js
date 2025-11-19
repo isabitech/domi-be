@@ -1,4 +1,17 @@
-const mongoose = require('mongoose');
+
+/**
+ * PRD Formula: Current Branch Register (Loan)
+ * currentLoanBalance = (previousLoanTotal * loanMultiplier) + loanDisbursementWithInterest - loanCollection
+ * - previousLoanTotal: HO input (monthly)
+ * - loanDisbursementWithInterest: from Cashbook2.disWithInt (daily)
+ * - loanCollection: from Cashbook1.loanCollection (daily)
+ * - loanMultiplier: HO input (per branch, see Branch model)
+ * Permissions:
+ *   - previousLoanTotal, loanMultiplier: HO can edit
+ *   - loanDisbursementWithInterest, loanCollection: BR can input via daily ops
+ *   - currentLoanBalance: system calculated, viewable by both HO and BR
+ */
+import mongoose from 'mongoose';
 
 const loanRegisterSchema = new mongoose.Schema({
   branch: {
@@ -25,19 +38,28 @@ const loanRegisterSchema = new mongoose.Schema({
   },
   currentLoanBalance: {
     type: Number,
-    default: 0 // Calculated: (Previous total * HO rate) + Disbursement - Collection
+    default: 0 // Calculated: (Previous total * loanMultiplier) + DisbursementWithInterest - Collection
   }
 }, {
   timestamps: true
 });
 
 // Calculate current loan balance before saving
-loanRegisterSchema.pre('save', function(next) {
-  this.currentLoanBalance = this.previousLoanTotal + this.loanDisbursementWithInterest - this.loanCollection;
+loanRegisterSchema.pre('save', async function(next) {
+  // Fetch branch to access multiplier
+  try {
+    const Branch = (await import('./Branch.js')).default;
+    const branch = await Branch.findById(this.branch).select('loanMultiplier');
+    const multiplier = branch?.loanMultiplier ?? 1;
+    this.currentLoanBalance = (this.previousLoanTotal * multiplier) + this.loanDisbursementWithInterest - this.loanCollection;
+  } catch (e) {
+    // Fallback to previous formula if branch fetch fails
+    this.currentLoanBalance = this.previousLoanTotal + this.loanDisbursementWithInterest - this.loanCollection;
+  }
   next();
 });
 
 // Index for better query performance
 loanRegisterSchema.index({ branch: 1, date: -1 });
 
-module.exports = mongoose.model('LoanRegister', loanRegisterSchema);
+export default mongoose.model('LoanRegister', loanRegisterSchema);

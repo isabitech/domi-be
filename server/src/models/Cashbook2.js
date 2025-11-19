@@ -1,4 +1,13 @@
-const mongoose = require('mongoose');
+
+/**
+ * PRD Formula: Cashbook 2
+ * cbTotal2 = disAmt + savWith + domiBank + posT
+ * - disNo, disAmt, disWithInt, savWith, domiBank, posT: BR input (daily)
+ * Permissions:
+ *   - BR can input: disNo, disAmt, disWithInt, savWith, domiBank, posT
+ *   - cbTotal2: system calculated, viewable by both HO and BR
+ */
+import mongoose from 'mongoose';
 
 const cashbook2Schema = new mongoose.Schema({
   branch: {
@@ -72,4 +81,4 @@ cashbook2Schema.pre('save', function(next) {
 cashbook2Schema.index({ branch: 1, date: -1 });
 cashbook2Schema.index({ user: 1, date: -1 });
 
-module.exports = mongoose.model('Cashbook2', cashbook2Schema);
+export default mongoose.model('Cashbook2', cashbook2Schema);

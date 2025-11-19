@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const branchSchema = new mongoose.Schema({
   name: {
@@ -46,6 +46,10 @@ const branchSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  loanMultiplier: {
+    type: Number,
+    default: 1 // HO configurable factor for loan register computation
+  },
   isActive: {
     type: Boolean,
     default: true
@@ -54,4 +58,4 @@ const branchSchema = new mongoose.Schema({
   timestamps: true
 });
 
-module.exports = mongoose.model('Branch', branchSchema);
+export default mongoose.model('Branch', branchSchema);

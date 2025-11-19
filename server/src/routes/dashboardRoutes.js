@@ -1,15 +1,15 @@
-const express = require('express');
-const {
-  getBranchDashboard,
-  getHODashboard
-} = require('../controllers/dashboardController');
-const { protect, authorizeBR, authorizeHO } = require('../middleware/auth');
+import express from 'express';
+import dashboardController from '../controllers/dashboardController.js';
+import { protect } from '../middleware/auth.js';
+import { requirePermission } from '../utils/permissions.js';
+import { validate } from '../middleware/validation.js';
+import { dashboardSchemas } from '../validators/dashboardSchemas.js';
 
 const router = express.Router();
 
 router.use(protect); // All routes are protected
 
-router.get('/branch', authorizeBR, getBranchDashboard);
-router.get('/ho', authorizeHO, getHODashboard);
+router.get('/branch', requirePermission('dashboard:branch'), validate(dashboardSchemas.branch), dashboardController.getBranchDashboard);
+router.get('/ho', requirePermission('dashboard:ho'), validate(dashboardSchemas.ho), dashboardController.getHODashboard);
 
-module.exports = router;
+export default router;

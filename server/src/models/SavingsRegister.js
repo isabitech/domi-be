@@ -1,4 +1,17 @@
-const mongoose = require('mongoose');
+
+/**
+ * PRD Formula: Current Branch Register (Savings)
+ * currentSavings = savings + previousSavingsTotal - savingsWithdrawal
+ * - previousSavingsTotal: HO input (monthly)
+ * - savings: from Cashbook1.savings (daily)
+ * - savingsWithdrawal: from Cashbook2.savWith (daily)
+ * Permissions:
+ *   - previousSavingsTotal: HO can edit
+ *   - savings: BR can input via daily ops
+ *   - savingsWithdrawal: BR can input via daily ops
+ *   - currentSavings: system calculated, viewable by both HO and BR
+ */
+import mongoose from 'mongoose';
 
 const savingsRegisterSchema = new mongoose.Schema({
   branch: {
@@ -40,4 +53,4 @@ savingsRegisterSchema.pre('save', function(next) {
 // Index for better query performance
 savingsRegisterSchema.index({ branch: 1, date: -1 });
 
-module.exports = mongoose.model('SavingsRegister', savingsRegisterSchema);
+export default mongoose.model('SavingsRegister', savingsRegisterSchema);
