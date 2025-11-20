@@ -35,13 +35,11 @@ class BranchService {
             data: branches
         };
     }
-
     async getBranch(id) {
         const branch = await Branch.findById(id).populate("manager", "name email");
         if (!branch) throw new Error("Branch not found");
         return branch;
     }
-
     async createBranch(data) {
         const { name, code, address, phone, email, manager } = data;
 
@@ -68,7 +66,6 @@ class BranchService {
         await branch.populate("manager", "name email");
         return branch;
     }
-
     async updateBranch(id, data) {
         const { name, code, address, phone, email, manager } = data;
 
@@ -102,7 +99,6 @@ class BranchService {
 
         return updated;
     }
-
     async deleteBranch(id) {
         const branch = await Branch.findById(id);
         if (!branch) throw new Error("Branch not found");
@@ -115,7 +111,6 @@ class BranchService {
         await Branch.findByIdAndDelete(id);
         return "Branch deleted successfully";
     }
-
     async toggleStatus(id) {
         const branch = await Branch.findById(id);
         if (!branch) throw new Error("Branch not found");
