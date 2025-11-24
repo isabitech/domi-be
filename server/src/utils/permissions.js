@@ -85,6 +85,7 @@ export function listPermissions(role) {
 
 export function requirePermission(permission) {
   return (req, _res, next) => {
+    if (req.user?.isAdmin) return next();
     if (!req.user?.role) {
       return next(new ForbiddenError('Role not found'));
     }

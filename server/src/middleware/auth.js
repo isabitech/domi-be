@@ -33,6 +33,10 @@ export const protect = async (req, _res, next) => {
 
     req.user = await User.findById(decoded.id).populate('branch');
 
+    // If admin, mark for bypass
+    if (req.user && req.user.role === 'admin') {
+      req.user.isAdmin = true;
+    }
     if (!req.user || !req.user.isActive) {
       return next(new AuthError('User not found or inactive'));
     }
@@ -46,6 +50,7 @@ export const protect = async (req, _res, next) => {
 // Grant access to specific roles
 export const authorize = (...roles) => {
   return (req, _res, next) => {
+    if (req.user?.isAdmin) return next();
     if (!roles.includes(req.user.role)) {
       return next(new ForbiddenError(`Role ${req.user.role} not authorized for this route`));
     }
@@ -55,6 +60,7 @@ export const authorize = (...roles) => {
 
 // HO only access
 export const authorizeHO = (req, _res, next) => {
+  if (req.user?.isAdmin) return next();
   if (req.user.role !== 'HO') {
     return next(new ForbiddenError('Access denied: Head Office users only'));
   }
@@ -63,6 +69,7 @@ export const authorizeHO = (req, _res, next) => {
 
 // BR only access
 export const authorizeBR = (req, _res, next) => {
+  if (req.user?.isAdmin) return next();
   if (req.user.role !== 'BR') {
     return next(new ForbiddenError('Access denied: Branch users only'));
   }

@@ -2,11 +2,17 @@
   "name": "domi-be",
   "private": true,
   "version": "0.0.0",
-  "workspaces": ["server"],
+  "workspaces": [
+    "server"
+  ],
   "scripts": {
     "dev": "npm --workspace server run dev",
     "start": "npm --workspace server run start",
     "test": "npm --workspace server run test",
     "lint": "npm --workspace server run lint || echo 'No lint script defined in server'"
+  },
+  "dependencies": {
+    "@faker-js/faker": "^10.1.0",
+    "faker": "^6.6.6"
   }
 }
