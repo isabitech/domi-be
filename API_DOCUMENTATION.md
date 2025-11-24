@@ -1,3 +1,188 @@
+# Dominion Seedstars API – Frontend Integration Guide
+
+**Base URL:**  
+`http://localhost:5000/api/v1`
+
+**Authentication:**  
+Most endpoints require a Bearer token (`Authorization: Bearer <token>`). Obtain this via the login endpoint.
+
+---
+
+## Auth Endpoints
+
+| Endpoint                | Method | Body/Params | Description |
+|-------------------------|--------|-------------|-------------|
+| `/auth/register`        | POST   | `{ username, email, password, role }` | Register a new user (admin/HO only) |
+| `/auth/login`           | POST   | `{ email, password }` | Login, returns JWT token |
+| `/auth/forgot-password` | POST   | `{ email }` | Request password reset |
+| `/auth/reset-password/:RESET_TOKEN` | PUT | `{ password }` | Reset password with token |
+| `/auth/me`              | GET    | -           | Get current user info (token required) |
+| `/auth/logout`          | POST   | -           | Logout (token required) |
+
+---
+
+## Users
+
+| Endpoint         | Method | Body/Params | Description |
+|------------------|--------|-------------|-------------|
+| `/users`         | GET    | `?page&limit` | List users (admin/HO only) |
+| `/users`         | POST   | `{ username, email, password, role, branchId }` | Create user |
+| `/users/:id`     | GET    | -           | Get user by ID |
+| `/users/:id`     | PUT    | `{ email, status }` | Update user |
+| `/users/:id`     | DELETE | -           | Delete user |
+
+---
+
+## Branches
+
+| Endpoint         | Method | Body/Params | Description |
+|------------------|--------|-------------|-------------|
+| `/branches`      | GET    | -           | List branches |
+| `/branches`      | POST   | `{ name, code, address, phone, email }` | Create branch |
+| `/branches/:id`  | GET    | -           | Get branch by ID |
+| `/branches/:id`  | PUT    | `{ phone }` | Update branch |
+| `/branches/:id/toggle-status` | PATCH | `{ status }` | Activate/deactivate branch |
+| `/branches/:id`  | DELETE | -           | Delete branch |
+
+---
+
+## Cashbook
+
+| Endpoint         | Method | Body/Params | Description |
+|------------------|--------|-------------|-------------|
+| `/cashbook`      | POST   | `{ branchId, date, cashbook1, cashbook2, ... }` | Create cashbook entry |
+| `/cashbook`      | GET    | `?page&limit` | List entries |
+| `/cashbook/:id`  | GET    | -           | Get entry by ID |
+| `/cashbook/:branchId/:date` | GET | - | Get entry by branch and date |
+| `/cashbook/:id`  | PUT    | `{ ... }`   | Update entry |
+| `/cashbook/:id/status` | PATCH | `{ status }` | Update entry status |
+| `/cashbook/reports/summary` | GET | `?branchId&date` | Get summary report |
+| `/cashbook/:id`  | DELETE | -           | Delete entry |
+
+---
+
+## Reports
+
+| Endpoint         | Method | Body/Params | Description |
+|------------------|--------|-------------|-------------|
+| `/reports/financial` | GET | `?startDate&endDate&branchId` | Financial report |
+| `/reports/daily` | GET | `?date` | Daily report |
+| `/reports/daily/export` | GET | `?date&format=csv` | Export daily report |
+| `/reports/monthly` | GET | `?month` | Monthly report |
+| `/reports/monthly/export` | GET | `?month&format=csv` | Export monthly report |
+| `/reports/consolidated` | GET | `?startDate&endDate` | Consolidated report |
+| `/reports/consolidated/export` | GET | `?startDate&endDate&format=csv` | Export consolidated report |
+| `/reports/custom` | POST | `{ from, to }` | Custom report |
+| `/reports/custom/export` | GET | `?from&to&format=csv` | Export custom report |
+
+---
+
+## Metrics
+
+| Endpoint         | Method | Body/Params | Description |
+|------------------|--------|-------------|-------------|
+| `/metrics/online-cih-tso` | GET | `?date` | Get online CIH TSO metrics |
+
+---
+
+## Operations
+
+| Endpoint         | Method | Body/Params | Description |
+|------------------|--------|-------------|-------------|
+| `/operations/daily` | GET | `?date&branchId` | Get daily operations |
+| `/operations/daily` | POST | `{ date, branchId, tsoData }` | Create daily operations |
+| `/operations/daily/:id/submit` | PATCH | `{ submittedBy }` | Submit daily operations |
+| `/operations/ho-fields` | PATCH | `{ field1, ... }` | Update HO fields |
+| `/operations/history` | GET | `?page&limit` | Get operations history |
+
+---
+
+## Dashboard
+
+| Endpoint         | Method | Body/Params | Description |
+|------------------|--------|-------------|-------------|
+| `/dashboard/branch` | GET | `?branchId&date` | Branch dashboard |
+| `/dashboard/ho` | GET | `?date` | HO dashboard |
+
+---
+
+## Registers
+
+| Endpoint         | Method | Body/Params | Description |
+|------------------|--------|-------------|-------------|
+| `/registers/loan` | GET | - | Get loan register |
+| `/registers/savings` | GET | - | Get savings register |
+| `/registers/previous` | PATCH | `{ previous }` | Update previous register values |
+
+---
+
+## Bank Statements
+
+| Endpoint         | Method | Body/Params | Description |
+|------------------|--------|-------------|-------------|
+| `/bank-statements/bs1` | GET | - | Get Bank Statement 1 |
+| `/bank-statements/bs2` | GET | - | Get Bank Statement 2 |
+| `/bank-statements/bs2/tbo` | PATCH | `{ tbo }` | Update TBO (BS2) |
+
+---
+
+## Prediction
+
+| Endpoint         | Method | Body/Params | Description |
+|------------------|--------|-------------|-------------|
+| `/prediction`    | GET | `?branchId&date` | Get predictions |
+| `/prediction`    | POST | `{ branchId, forecast }` | Create prediction |
+
+---
+
+## Disbursement Roll
+
+| Endpoint         | Method | Body/Params | Description |
+|------------------|--------|-------------|-------------|
+| `/disbursement-roll` | GET | `?date` | Get disbursement roll |
+| `/disbursement-roll/previous` | PATCH | `{ previous }` | Update previous disbursement |
+
+---
+
+## Settings
+
+| Endpoint         | Method | Body/Params | Description |
+|------------------|--------|-------------|-------------|
+| `/settings/system` | GET | - | Get system settings |
+| `/settings/system` | PUT | `{ appName }` | Update system settings |
+| `/settings/financial` | GET | - | Get financial settings |
+| `/settings/financial` | PUT | `{ taxRate }` | Update financial settings |
+| `/settings/security` | GET | - | Get security settings |
+| `/settings/security` | PUT | `{ passwordMinLength }` | Update security settings |
+| `/settings/notifications` | GET | - | Get notifications settings |
+| `/settings/notifications` | PUT | `{ emailEnabled, smsEnabled }` | Update notifications settings |
+
+---
+
+## Audit
+
+| Endpoint         | Method | Body/Params | Description |
+|------------------|--------|-------------|-------------|
+| `/audit-logs`    | GET | `?page&limit` | List audit logs |
+
+---
+
+## System
+
+| Endpoint         | Method | Body/Params | Description |
+|------------------|--------|-------------|-------------|
+| `/health`        | GET | - | Health check |
+| `/permissions`   | GET | - | List permissions |
+| `/system-metrics`| GET | - | System metrics (token required) |
+
+---
+
+**Notes:**
+- All endpoints requiring authentication must include the `Authorization: Bearer <token>` header.
+- Replace variables like `{{USER_ID}}`, `{{BRANCH_ID}}`, `{{ENTRY_ID}}`, and `{{RESET_TOKEN}}` with actual values.
+- For POST/PUT/PATCH requests, send JSON in the request body as shown in the examples.
+
+If you need sample request/response payloads or more details for any endpoint, let me know!
 # Operations Management System API Documentation
 
 ## Overview
