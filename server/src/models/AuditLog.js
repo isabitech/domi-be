@@ -8,6 +8,8 @@ const auditSchema = new mongoose.Schema({
   resourceId: String,
   oldValue: mongoose.Schema.Types.Mixed,
   newValue: mongoose.Schema.Types.Mixed,
+  diff: mongoose.Schema.Types.Mixed, // shallow diff of changes
+  meta: mongoose.Schema.Types.Mixed, // optional extra metadata
   ipAddress: String,
   userAgent: String,
   timestamp: { type: Date, default: Date.now }

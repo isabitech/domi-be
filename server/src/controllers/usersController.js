@@ -1,6 +1,7 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import User from '../models/User.js';
 import { success } from '../utils/response.js';
+import { logAudit, AUDIT_ACTIONS } from '../utils/audit.js';
 import { NotFoundError, DuplicateError, ValidationError } from '../utils/errors.js';
 import { parsePagination, buildPaginationMeta } from '../utils/pagination.js';
 
@@ -30,6 +31,16 @@ class UsersController {
     const user = await User.create({ name: username, username, email, password, role, branch: branchId });
     const out = user.toObject();
     delete out.password;
+    logAudit({
+      user: req.user,
+      action: AUDIT_ACTIONS.CREATE,
+      resource: 'user',
+      resourceId: user._id.toString(),
+      oldDoc: null,
+      newDoc: out,
+      req,
+      extra: { branchId: out.branch?.toString?.(), role: out.role }
+    });
     success(res, { user: out }, 'User created', 201);
   });
 
@@ -39,6 +50,7 @@ class UsersController {
 
     const user = await User.findById(id);
     if (!user) throw new NotFoundError('User not found');
+    const oldSnapshot = user.toObject();
 
     if (payload.username || payload.email) {
       const existing = await User.findOne({
@@ -59,6 +71,16 @@ class UsersController {
 
     await user.save();
     const out = user.toObject(); delete out.password;
+    logAudit({
+      user: req.user,
+      action: AUDIT_ACTIONS.UPDATE,
+      resource: 'user',
+      resourceId: user._id.toString(),
+      oldDoc: oldSnapshot,
+      newDoc: out,
+      req,
+      extra: { branchId: out.branch?.toString?.(), role: out.role }
+    });
     success(res, { user: out }, 'User updated');
   });
 
@@ -66,7 +88,18 @@ class UsersController {
     const { id } = req.params;
     const user = await User.findById(id);
     if (!user) throw new NotFoundError('User not found');
+    const oldSnapshot = user.toObject();
     await User.findByIdAndDelete(id);
+    logAudit({
+      user: req.user,
+      action: AUDIT_ACTIONS.DELETE,
+      resource: 'user',
+      resourceId: user._id.toString(),
+      oldDoc: oldSnapshot,
+      newDoc: null,
+      req,
+      extra: { branchId: oldSnapshot.branch?.toString?.(), role: oldSnapshot.role }
+    });
     success(res, {}, 'User deleted');
   });
 }

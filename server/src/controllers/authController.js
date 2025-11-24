@@ -4,12 +4,12 @@ import { success } from '../utils/response.js';
 
 class AuthController {
   register = asyncHandler(async (req, res) => {
-    const result = await authService.register(req.body);
+    const result = await authService.register(req.body, req);
     success(res, result, 'User registered', 201);
   });
 
   login = asyncHandler(async (req, res) => {
-    const result = await authService.login(req.body);
+    const result = await authService.login(req.body, req);
     success(res, result, 'Login successful');
   });
 
@@ -19,21 +19,23 @@ class AuthController {
   });
 
   forgotPassword = asyncHandler(async (req, res) => {
-    const result = await authService.forgotPassword(req.body.email);
+    const result = await authService.forgotPassword(req.body.email, req.user, req);
     success(res, result, 'Password reset email sent');
   });
 
   resetPassword = asyncHandler(async (req, res) => {
     const result = await authService.resetPassword(
       req.params.resettoken,
-      req.body.password
+      req.body.password,
+      req.user,
+      req
     );
     success(res, result, 'Password reset successful');
   });
 
   logout = asyncHandler(async (req, res) => {
     const rawToken = req.token || (req.headers.authorization && req.headers.authorization.split(' ')[1]);
-    await authService.revokeToken(rawToken);
+    await authService.revokeToken(rawToken, req.user, req);
     success(res, {}, 'Logged out successfully');
   });
 }

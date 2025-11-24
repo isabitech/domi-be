@@ -1,5 +1,6 @@
 import Cashbook from '../models/Cashbook.js';
 import { NotFoundError, ForbiddenError, ValidationError } from '../utils/errors.js';
+import { logAudit, AUDIT_ACTIONS } from '../utils/audit.js';
 
 class CashbookService {
   static async listEntries(req) {
@@ -85,12 +86,23 @@ class CashbookService {
       { path: 'user', select: 'name email' },
       { path: 'branch', select: 'name code' }
     ]);
+    // Audit creation
+    logAudit({
+      user: req.user,
+      action: AUDIT_ACTIONS.CREATE,
+      resource: 'cashbook',
+      resourceId: entry._id.toString(),
+      oldDoc: null,
+      newDoc: entry.toObject(),
+      req
+    });
     return entry;
   }
 
   static async updateEntry(req) {
     let entry = await Cashbook.findById(req.params.id);
     if (!entry) throw new NotFoundError('Cashbook entry not found');
+    const oldSnapshot = entry.toObject();
     // Enforce same-day edits and cutoff hour
     const entryDate = entry.date || entry.createdAt;
     const now = new Date();
@@ -116,12 +128,22 @@ class CashbookService {
       { path: 'user', select: 'name email' },
       { path: 'branch', select: 'name code' }
     ]);
+    logAudit({
+      user: req.user,
+      action: AUDIT_ACTIONS.UPDATE,
+      resource: 'cashbook',
+      resourceId: entry._id.toString(),
+      oldDoc: oldSnapshot,
+      newDoc: entry.toObject(),
+      req
+    });
     return entry;
   }
 
   static async deleteEntry(req) {
     const entry = await Cashbook.findById(req.params.id);
     if (!entry) throw new NotFoundError('Cashbook entry not found');
+    const oldSnapshot = entry.toObject();
 
     // Enforce same-day delete and cutoff hour
     const entryDate = entry.date || entry.createdAt;
@@ -143,6 +165,15 @@ class CashbookService {
     if (!canDelete) throw new ForbiddenError('Not authorized to delete this entry');
 
     await Cashbook.findByIdAndDelete(req.params.id);
+    logAudit({
+      user: req.user,
+      action: AUDIT_ACTIONS.DELETE,
+      resource: 'cashbook',
+      resourceId: entry._id.toString(),
+      oldDoc: oldSnapshot,
+      newDoc: null,
+      req
+    });
   }
 
   static async updateStatus(req) {
@@ -152,6 +183,7 @@ class CashbookService {
     }
     const entry = await Cashbook.findById(req.params.id);
     if (!entry) throw new NotFoundError('Cashbook entry not found');
+    const oldSnapshot = entry.toObject();
 
     const canApprove =
       req.user.role === 'admin' ||
@@ -168,6 +200,15 @@ class CashbookService {
       { path: 'branch', select: 'name code' },
       { path: 'approvedBy', select: 'name email' }
     ]);
+    logAudit({
+      user: req.user,
+      action: AUDIT_ACTIONS.STATUS,
+      resource: 'cashbook',
+      resourceId: entry._id.toString(),
+      oldDoc: oldSnapshot,
+      newDoc: entry.toObject(),
+      req
+    });
     return entry;
   }
 

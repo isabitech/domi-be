@@ -1,5 +1,6 @@
 import User from "../models/User";
 import Branch from "../models/Branch.js";
+import { logAudit, AUDIT_ACTIONS } from '../utils/audit.js';
 
 class BranchService {
     async getBranches({ page, limit, search }) {
@@ -40,7 +41,7 @@ class BranchService {
         if (!branch) throw new Error("Branch not found");
         return branch;
     }
-    async createBranch(data) {
+    async createBranch(data, reqUser, req) {
         const { name, code, address, phone, email, manager } = data;
 
         const exists = await Branch.findOne({
@@ -64,13 +65,24 @@ class BranchService {
         });
 
         await branch.populate("manager", "name email");
+        logAudit({
+            user: reqUser,
+            action: AUDIT_ACTIONS.CREATE,
+            resource: 'branch',
+            resourceId: branch._id.toString(),
+            oldDoc: null,
+            newDoc: branch.toObject(),
+            req,
+            extra: { branchId: branch._id.toString(), branchCode: branch.code }
+        });
         return branch;
     }
-    async updateBranch(id, data) {
+    async updateBranch(id, data, reqUser, req) {
         const { name, code, address, phone, email, manager } = data;
 
         const branch = await Branch.findById(id);
         if (!branch) throw new Error("Branch not found");
+        const oldSnapshot = branch.toObject();
 
         if (name || code) {
             const duplicate = await Branch.findOne({
@@ -97,11 +109,23 @@ class BranchService {
             { new: true, runValidators: true }
         ).populate("manager", "name email");
 
+        logAudit({
+            user: reqUser,
+            action: AUDIT_ACTIONS.UPDATE,
+            resource: 'branch',
+            resourceId: updated._id.toString(),
+            oldDoc: oldSnapshot,
+            newDoc: updated.toObject(),
+            req,
+            extra: { branchId: updated._id.toString(), branchCode: updated.code }
+        });
+
         return updated;
     }
-    async deleteBranch(id) {
+    async deleteBranch(id, reqUser, req) {
         const branch = await Branch.findById(id);
         if (!branch) throw new Error("Branch not found");
+        const oldSnapshot = branch.toObject();
 
         const usersCount = await User.countDocuments({ branch: id });
         if (usersCount > 0) {
@@ -109,20 +133,42 @@ class BranchService {
         }
 
         await Branch.findByIdAndDelete(id);
+        logAudit({
+            user: reqUser,
+            action: AUDIT_ACTIONS.DELETE,
+            resource: 'branch',
+            resourceId: branch._id.toString(),
+            oldDoc: oldSnapshot,
+            newDoc: null,
+            req,
+            extra: { branchId: branch._id.toString(), branchCode: branch.code }
+        });
         return "Branch deleted successfully";
     }
-    async toggleStatus(id) {
+    async toggleStatus(id, reqUser, req) {
         const branch = await Branch.findById(id);
         if (!branch) throw new Error("Branch not found");
+        const oldSnapshot = branch.toObject();
 
         branch.isActive = !branch.isActive;
         await branch.save();
 
-        return {
+        const out = {
             status: branch.isActive,
             message: `Branch ${branch.isActive ? "activated" : "deactivated"} successfully`,
             data: branch
         };
+        logAudit({
+            user: reqUser,
+            action: AUDIT_ACTIONS.STATUS,
+            resource: 'branch',
+            resourceId: branch._id.toString(),
+            oldDoc: oldSnapshot,
+            newDoc: branch.toObject(),
+            req,
+            extra: { branchId: branch._id.toString(), branchCode: branch.code, status: branch.isActive }
+        });
+        return out;
     }
 }
 

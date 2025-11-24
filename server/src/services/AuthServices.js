@@ -6,6 +6,7 @@ import sendEmail from '../utils/sendEmail.js';
 import { AuthError, DuplicateError, NotFoundError, ValidationError } from '../utils/errors.js';
 import RevokedToken from '../models/RevokedToken.js';
 import { listPermissions } from '../utils/permissions.js';
+import { logAudit, AUDIT_ACTIONS } from '../utils/audit.js';
 
 class AuthService {
 
@@ -15,7 +16,7 @@ class AuthService {
         });
     }
 
-    async register(data) {
+    async register(data, req) {
         const { name, email, password, role, branch } = data;
 
         const exists = await User.findOne({ email });
@@ -31,7 +32,7 @@ class AuthService {
 
         const token = this.generateToken(user._id);
 
-        return {
+        const payload = {
             token,
             user: {
                 id: user._id,
@@ -41,9 +42,21 @@ class AuthService {
                 branch: user.branch
             }
         };
+        // Audit registration
+        logAudit({
+            user,
+            action: AUDIT_ACTIONS.CREATE,
+            resource: 'auth',
+            resourceId: user._id.toString(),
+            oldDoc: null,
+            newDoc: { id: user._id.toString(), email: user.email, role: user.role },
+            req,
+            extra: { event: 'register', branchId: user.branch?.toString() }
+        });
+        return payload;
     }
 
-    async login(data) {
+    async login(data, req) {
         const { email, username, password } = this.validateLoginInput(data);
         // allow login by email OR username
         const identifier = email || username || data.email || data.username;
@@ -63,7 +76,18 @@ class AuthService {
         await user.save();
 
         await this.notifyHeadOfficeOnBranchLogin(user);
-        return this.buildAuthResponse(user, token, expiresIn);
+        const response = this.buildAuthResponse(user, token, expiresIn);
+        logAudit({
+            user,
+            action: AUDIT_ACTIONS.LOGIN,
+            resource: 'auth',
+            resourceId: user._id.toString(),
+            oldDoc: null,
+            newDoc: { userId: user._id.toString(), success: true },
+            req,
+            extra: { event: 'login', branchId: user.branch?._id?.toString(), branchCode: user.branch?.code }
+        });
+        return response;
     }
 
     // Helper: Validate login input (accepts email OR username)
@@ -142,7 +166,7 @@ class AuthService {
         };
     }
 
-    async forgotPassword(email) {
+    async forgotPassword(email, reqUser, req) {
         const user = await User.findOne({ email });
         if (!user) throw new NotFoundError('User not found');
 
@@ -164,11 +188,20 @@ class AuthService {
             subject: "Password reset token",
             message: `Reset your password by sending a PUT request to: ${resetUrl}`
         });
-
+        logAudit({
+            user: reqUser || user,
+            action: AUDIT_ACTIONS.UPDATE,
+            resource: 'auth',
+            resourceId: user._id.toString(),
+            oldDoc: null,
+            newDoc: { passwordResetRequested: true },
+            req,
+            extra: { event: 'forgot_password' }
+        });
         return { message: "Reset email sent" };
     }
 
-    async resetPassword(token, password) {
+    async resetPassword(token, password, reqUser, req) {
         const hashed = crypto
             .createHash("sha256")
             .update(token)
@@ -187,11 +220,20 @@ class AuthService {
         await user.save();
 
         const jwtToken = this.generateToken(user._id);
-
+        logAudit({
+            user: reqUser || user,
+            action: AUDIT_ACTIONS.UPDATE,
+            resource: 'auth',
+            resourceId: user._id.toString(),
+            oldDoc: null,
+            newDoc: { passwordReset: true },
+            req,
+            extra: { event: 'reset_password' }
+        });
         return { token: jwtToken };
     }
 
-    async revokeToken(rawToken) {
+    async revokeToken(rawToken, reqUser, req) {
         if (!rawToken) return;
         // decode expiry without verifying signature
         const decoded = jwt.decode(rawToken);
@@ -201,6 +243,18 @@ class AuthService {
             await RevokedToken.create({ tokenHash, expiresAt });
         } catch (err) {
             // ignore duplicate key or write errors
+        }
+        if (reqUser) {
+            logAudit({
+                user: reqUser,
+                action: AUDIT_ACTIONS.LOGOUT,
+                resource: 'auth',
+                resourceId: reqUser._id?.toString() || reqUser.id?.toString(),
+                oldDoc: null,
+                newDoc: { logout: true },
+                req,
+                extra: { event: 'logout' }
+            });
         }
     }
 }

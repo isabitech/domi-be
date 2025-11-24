@@ -102,6 +102,16 @@ const reportsLimiter = rateLimit({
   legacyHeaders: false
 });
 
+// Audit logs specific limiter (stricter: protect expensive queries)
+const auditLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20, // allow 20 audit queries per minute per user/IP
+  keyGenerator: req => req.user?.id || req.ip,
+  message: 'Too many audit log requests. Please slow down.',
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
 // CORS
 app.use(cors({
   origin: config.client.url,
@@ -125,7 +135,7 @@ app.use(`${API_PREFIX}/bank-statements`, bankStatementRoutes);
 app.use(`${API_PREFIX}/prediction`, predictionRoutes);
 app.use(`${API_PREFIX}/disbursement-roll`, disbursementRollRoutes);
 app.use(`${API_PREFIX}/metrics`, metricsRoutes);
-app.use(`${API_PREFIX}/audit-logs`, auditRoutes);
+app.use(`${API_PREFIX}/audit-logs`, auditLimiter, auditRoutes);
 
 // Health check
 app.get(`${API_PREFIX}/health`, (req, res) => {

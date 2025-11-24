@@ -3,7 +3,7 @@ import auditController from '../controllers/auditController.js';
 import { protect, authorizeHO } from '../middleware/auth.js';
 import { validate } from '../middleware/validation.js';
 import { auditSchemas } from '../validators/auditSchemas.js';
-import { tryCatch } from 'src/utils/asyncHandler.js';
+import { tryCatch } from '../utils/asyncHandler.js';
 
 const router = express.Router();
 

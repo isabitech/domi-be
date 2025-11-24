@@ -28,17 +28,10 @@ const run = async () => {
       process.exit(0);
     }
 
-    const user = await User.create({
-      name: username,
-      username,
-      email,
-      password,
-      role,
-      branch: branch || undefined
-    });
+    const user = await User.deleteOne(exists);
 
-    console.log('Seed user created:');
-    console.log({ id: user._id.toString(), email: user.email, username: user.username, role: user.role });
+    console.log('Seed user deleted:');
+    // console.log({ id: user._id.toString(), email: user.email, username: user.username, role: user.role });
     process.exit(0);
   } catch (err) {
     console.error('Seed failed:', err.message || err);
