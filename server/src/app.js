@@ -39,6 +39,8 @@ app.use((req, _res, next) => {
 
 // Security middleware
 app.use(helmet());
+app.set('trust proxy', true);
+
 
 // Body parsing
 app.use(express.json({ limit: '1mb' }));
