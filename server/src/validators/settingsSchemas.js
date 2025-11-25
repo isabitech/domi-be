@@ -6,7 +6,7 @@ export const settingsSchemas = {
     companyName: Joi.string().optional(),
     defaultCurrency: Joi.string().valid('NGN','USD','EUR').optional(),
     financialYearStart: Joi.date().iso().optional(),
-    maxDailyTransactionLimit: Joi.number().integer().min(0).optional(),
+    maxDailyTransactionLimit: Joi.number().min(0).optional(),
     autoBackupTime: Joi.string().optional(),
     sessionTimeoutMinutes: Joi.number().integer().min(5).max(120).optional(),
     auditTrailEnabled: Joi.boolean().optional()
@@ -16,9 +16,9 @@ export const settingsSchemas = {
     savingsInterestRate: Joi.number().min(0).max(100).optional(),
     processingFeePercentage: Joi.number().min(0).max(100).optional(),
     latePaymentPenalty: Joi.number().min(0).max(100).optional(),
-    minimumSavingsAmount: Joi.number().integer().min(0).optional(),
-    maximumLoanAmount: Joi.number().integer().min(0).optional(),
-    dailyWithdrawalLimit: Joi.number().integer().min(0).optional(),
+    minimumSavingsAmount: Joi.number().min(0).optional(),
+    maximumLoanAmount: Joi.number().min(0).optional(),
+    dailyWithdrawalLimit: Joi.number().min(0).optional(),
     transactionApprovalsEnabled: Joi.boolean().optional()
   })}),
   security: Joi.object({ body: Joi.object({

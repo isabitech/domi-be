@@ -132,7 +132,7 @@ class AuthService {
 
     // Helper: Build auth response
     buildAuthResponse(user, token, expiresIn) {
-        const perms = listPermissions(user.role);
+        // const perms = listPermissions(user.role);
         return {
             token,
             expiresIn,
@@ -143,7 +143,7 @@ class AuthService {
                 role: user.role,
                 branchId: user.branch?._id || null,
                 branchName: user.branch?.name || null,
-                permissions: perms,
+                // permissions: perms,
                 lastLogin: user.lastLogin || null,
                 isFirstLogin: !!user.isFirstLogin
             }

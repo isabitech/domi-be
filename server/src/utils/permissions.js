@@ -1,9 +1,7 @@
 import { ForbiddenError } from '../utils/errors.js';
-
 // Simple RBAC permission map with inheritance
 // Roles assumed: employee < BR < manager < HO < admin
-const roleHierarchy = ['employee', 'BR', 'manager', 'HO', 'admin'];
-
+const roleHierarchy = ['BR', 'HO',];
 const basePermissions = {
   employee: [
     'cashbook:view',
@@ -25,13 +23,6 @@ const basePermissions = {
     'bankstatements:view',
     'disbursement:view'
   ],
-  manager: [
-    'cashbook:approve',
-    'reports:view',
-    'registers:view',
-    'bankstatements:view',
-    'disbursement:view'
-  ],
   HO: [
     'reports:consolidated',
     'dashboard:ho',
@@ -44,23 +35,10 @@ const basePermissions = {
     'bankstatements:modify',
     'prediction:view',
     'disbursement:view',
-    'disbursement:modify'
-  ],
-  admin: [
-    'branch:create',
-    'branch:update',
-    'branch:delete',
-    'branch:toggle',
-    'reports:view',
-    'reports:export',
-    'metrics:view',
-    'registers:view',
-    'registers:modify',
-    'bankstatements:view',
-    'bankstatements:modify',
-    'prediction:view',
-    'disbursement:view',
-    'disbursement:modify'
+    'disbursement:modify',
+    'cashbook:approve',
+    'cashbook:view',
+    'cashbook:create'
   ]
 };
 

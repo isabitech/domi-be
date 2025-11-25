@@ -22,7 +22,7 @@ export const branchSchemas = {
       managerEmail: Joi.string().email().optional(),
       managerPassword: Joi.string().min(8).optional(),
       operationHours: Joi.string().optional(),
-      dailyLimit: Joi.number().integer().min(0).optional()
+      dailyLimit: Joi.number().min(0).optional()
     })
   }),
   update: Joi.object({
@@ -37,7 +37,7 @@ export const branchSchemas = {
       managerEmail: Joi.string().email().optional(),
       managerPassword: Joi.string().min(8).optional(),
       operationHours: Joi.string().optional(),
-      dailyLimit: Joi.number().integer().min(0).optional(),
+      dailyLimit: Joi.number().min(0).optional(),
       status: Joi.string().valid('active','inactive').optional()
     })
   }),

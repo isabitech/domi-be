@@ -11,7 +11,7 @@ class PredictionController {
     const end = new Date(start.getTime() + 24*60*60*1000);
     const branch = req.user.role === 'BR' ? req.user.branch : branchId;
     const pred = await Prediction.findOne({ branch, predictionDate: { $gte: start, $lt: end } });
-    if (!pred) throw new NotFoundError('Prediction not found');
+    // if (!pred) throw new NotFoundError('Prediction not found');
     success(res, { prediction: pred }, 'Prediction fetched');
   });
 
