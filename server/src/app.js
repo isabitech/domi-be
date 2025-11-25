@@ -28,14 +28,13 @@ import config from './config/index.js';
 
 // Initialize express
 const app = express();
-
 // Simple in-memory metrics
 const metrics = { startTime: Date.now(), requestCount: 0, errorCount: 0 };
 
 // Request counter
-app.use((req, _res, next) => { 
-  metrics.requestCount++; 
-  next(); 
+app.use((req, _res, next) => {
+  metrics.requestCount++;
+  next();
 });
 
 // Security middleware
@@ -71,8 +70,8 @@ app.use((req, _res, next) => {
 
 // Request logging
 if (process.env.NODE_ENV !== 'test') {
-  app.use(morgan('combined', { 
-    stream: { write: msg => logger.info(msg.trim()) } 
+  app.use(morgan('combined', {
+    stream: { write: msg => logger.info(msg.trim()) }
   }));
 }
 
@@ -114,8 +113,9 @@ const auditLimiter = rateLimit({
 
 // CORS
 app.use(cors({
-  origin: config.client.url,
-  credentials: true
+  // origin: config.client.url,
+  origin: '*',
+  // credentials: true
 }));
 
 const API_PREFIX = config.server.apiPrefix;
