@@ -19,6 +19,7 @@ const basePermissions = {
     'dashboard:branch',
     'operations:daily:view',
     'operations:daily:modify',
+    'operations:history:view',
     'prediction:modify'
   ],
   HO: [
