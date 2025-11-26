@@ -19,11 +19,11 @@ export const cashbookSchemas = {
   create: Joi.object({
     body: Joi.object({
       type: Joi.string().valid('income','expense').required(),
-      category: Joi.string().min(2).required(),
-      description: Joi.string().min(3).required(),
+      category: Joi.string().min(2).allow(null),
+      description: Joi.string().min(3).allow(null),
       amount: Joi.number().min(0).required(),
       paymentMethod: Joi.string().optional(),
-      reference: Joi.string().optional(),
+      reference: Joi.string().allow(null),
       date: Joi.date().iso().optional(),
       notes: Joi.string().allow('', null).optional()
     })

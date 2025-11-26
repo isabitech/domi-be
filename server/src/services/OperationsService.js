@@ -8,7 +8,7 @@ import BankStatement2 from '../models/BankStatement2.js';
 import DailyOperations from '../models/DailyOperations.js';
 import DisbursementRoll from '../models/DisbursementRoll.js';
 import Branch from '../models/Branch.js';
-import { ForbiddenError, NotFoundError, ValidationError } from '../utils/errors.js';
+import { ForbiddenError, NotFoundError } from '../utils/errors.js';
 import { calcOnlineCIH, calcTSO } from '../utils/formulas.js';
 
 class OperationsService {
@@ -22,9 +22,11 @@ class OperationsService {
 
   // Cutoff enforcement
   static async enforceCutoff() {
-    const now = new Date();
-    const cutoffHour = (await import('../config/index.js')).config.server.editCutoffHour;
-    if (now.getHours() >= cutoffHour) throw new ForbiddenError(`Edit window closed after ${cutoffHour}:00`);
+    if (await import('../config/index.js').config.env === 'production') {
+      const now = new Date();
+      const cutoffHour = (await import('../config/index.js')).config.server.editCutoffHour;
+      if (now.getHours() >= cutoffHour) throw new ForbiddenError(`Edit window closed after ${cutoffHour}:00`);
+    }
   }
 
   // Cashbook builders
@@ -116,13 +118,7 @@ class OperationsService {
     const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
 
     let query = { date: { $gte: startOfDay, $lt: endOfDay } };
-    if (req.user.role === 'BR') {
-      query.branch = req.user.branch;
-    } else if (req.user.role === 'admin' && branchId) {
-      query.branch = branchId;
-    } else if (branchId) {
-      query.branch = branchId;
-    }
+    if (req.user.role === 'BR') query.branch = req.user.branch; else if (branchId) query.branch = branchId;
 
     return DailyOperations.findOne(query)
       .populate('branch', 'name code')
@@ -137,42 +133,24 @@ class OperationsService {
   }
 
   static async createOrUpdate(req) {
-    if (req.user.role !== 'BR' && req.user.role !== 'admin') {
-      throw new ForbiddenError('Only branch users can create daily operations');
-    }
+    if (req.user.role !== 'BR') throw new ForbiddenError('Only branch users can create daily operations');
     await this.enforceCutoff();
     const payload = req.body;
     const { target, start, end } = this.getDayBounds(payload.date);
 
-    const resolvedBranchId = req.user.role === 'BR'
-      ? (req.user.branch?._id || req.user.branch)
-      : (payload.branchId || req.user.branch?._id || req.user.branch);
+    let dailyOps = await DailyOperations.findOne({ branch: req.user.branch, date: { $gte: start, $lt: end } });
+    const branchMeta = await Branch.findById(req.user.branch);
 
-    if (!resolvedBranchId) {
-      throw new ValidationError('branchId is required to create daily operations');
-    }
+    const cb1 = await this.buildCashbook1(dailyOps?.cashbook1, req.user.branch, req.user.id, target, payload);
+    const cb2 = await this.buildCashbook2(dailyOps?.cashbook2, req.user.branch, req.user.id, target, payload);
+    const prediction = await this.buildPrediction(dailyOps?.prediction, req.user.branch, req.user.id, target, payload);
+    const bs1 = await this.buildBankStatement1(dailyOps?.bankStatement1, req.user.branch, target, cb1, cb2);
+    const bs2 = await this.buildBankStatement2(dailyOps?.bankStatement2, req.user.branch, req.user.id, target, cb1, payload);
+    const loanRegister = await this.buildLoanRegister(dailyOps?.loanRegister, req.user.branch, target, branchMeta, cb2, cb1);
+    const savingsRegister = await this.buildSavingsRegister(dailyOps?.savingsRegister, req.user.branch, target, branchMeta, cb1, cb2);
+    await this.upsertDisbursementRoll(req.user.branch, target, branchMeta, cb2);
 
-    let dailyOps = await DailyOperations.findOne({ branch: resolvedBranchId, date: { $gte: start, $lt: end } });
-    const branchMeta = await Branch.findById(resolvedBranchId);
-    if (!branchMeta) {
-      throw new NotFoundError('Branch not found');
-    }
-
-    const cb1 = await this.buildCashbook1(dailyOps?.cashbook1, resolvedBranchId, req.user.id, target, payload);
-    const cb2 = await this.buildCashbook2(dailyOps?.cashbook2, resolvedBranchId, req.user.id, target, payload);
-    const prediction = await this.buildPrediction(dailyOps?.prediction, resolvedBranchId, req.user.id, target, payload);
-    const bs1 = await this.buildBankStatement1(dailyOps?.bankStatement1, resolvedBranchId, target, cb1, cb2);
-    const bs2 = await this.buildBankStatement2(dailyOps?.bankStatement2, resolvedBranchId, req.user.id, target, cb1, payload);
-    const loanRegister = await this.buildLoanRegister(dailyOps?.loanRegister, resolvedBranchId, target, branchMeta, cb2, cb1);
-    const savingsRegister = await this.buildSavingsRegister(dailyOps?.savingsRegister, resolvedBranchId, target, branchMeta, cb1, cb2);
-    await this.upsertDisbursementRoll(resolvedBranchId, target, branchMeta, cb2);
-
-    if (!dailyOps) {
-      dailyOps = new DailyOperations();
-      dailyOps.branch = resolvedBranchId;
-      dailyOps.user = req.user.id;
-      dailyOps.date = target;
-    }
+    if (!dailyOps) { dailyOps = new DailyOperations(); dailyOps.branch = req.user.branch; dailyOps.user = req.user.id; dailyOps.date = target; }
     dailyOps.cashbook1 = cb1._id; dailyOps.cashbook2 = cb2._id; dailyOps.prediction = prediction._id; dailyOps.bankStatement1 = bs1._id; dailyOps.bankStatement2 = bs2._id; dailyOps.loanRegister = loanRegister._id; dailyOps.savingsRegister = savingsRegister._id;
     await this.applyDerivedTotals(dailyOps, cb1, cb2, bs1, bs2);
     await dailyOps.save();
@@ -193,9 +171,7 @@ class OperationsService {
   static async submit(req) {
     const dailyOps = await DailyOperations.findById(req.params.id);
     if (!dailyOps) throw new NotFoundError('Daily operations not found');
-    if (dailyOps.user.toString() !== req.user.id && req.user.role !== 'admin') {
-      throw new ForbiddenError('Not authorized to submit this record');
-    }
+    if (dailyOps.user.toString() !== req.user.id) throw new ForbiddenError('Not authorized to submit this record');
     const now = new Date();
     const cutoffHour = (await import('../config/index.js')).config.server.editCutoffHour;
     if (now.getHours() >= cutoffHour) {
@@ -208,9 +184,7 @@ class OperationsService {
   }
 
   static async updateHOFields(req) {
-    if (req.user.role !== 'HO' && req.user.role !== 'admin') {
-      throw new ForbiddenError('Only Head Office can update these fields');
-    }
+    if (req.user.role !== 'HO') throw new ForbiddenError('Only Head Office can update these fields');
     const { branchId, date } = req.body;
     const { target, start, end } = this.getDayBounds(date);
     await this.updateBranchPreviousValues(req.body, branchId);
