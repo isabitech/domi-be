@@ -22,11 +22,9 @@ class OperationsService {
 
   // Cutoff enforcement
   static async enforceCutoff() {
-    if (await import('../config/index.js').config.env === 'production') {
-      const now = new Date();
-      const cutoffHour = (await import('../config/index.js')).config.server.editCutoffHour;
-      if (now.getHours() >= cutoffHour) throw new ForbiddenError(`Edit window closed after ${cutoffHour}:00`);
-    }
+    const now = new Date();
+    const cutoffHour = (await import('../config/index.js')).config.server.editCutoffHour;
+    if (now.getHours() >= cutoffHour) throw new ForbiddenError(`Edit window closed after ${cutoffHour}:00`);
   }
 
   // Cashbook builders
@@ -134,7 +132,7 @@ class OperationsService {
 
   static async createOrUpdate(req) {
     if (req.user.role !== 'BR') throw new ForbiddenError('Only branch users can create daily operations');
-    await this.enforceCutoff();
+    // await this.enforceCutoff();
     const payload = req.body;
     const { target, start, end } = this.getDayBounds(payload.date);
 
