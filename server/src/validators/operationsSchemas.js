@@ -57,14 +57,24 @@ export const operationsSchemas = {
   createOrUpdate: Joi.object({
     body: Joi.object({
       date: Joi.date().iso().optional(),
-      branchId: id.optional(),
-      cashbook1,
-      cashbook2,
-      prediction,
-      bankStatement1,
-      bankStatement2,
-      loanRegister,
-      savingsRegister
+      // Cashbook1 fields (flat structure)
+      pcih: numeric,
+      savings: numeric,
+      loanCollection: numeric,
+      chargesCollection: numeric,
+      // Cashbook2 fields (flat structure)
+      disNo: numeric,
+      disAmt: numeric,
+      disWithInt: numeric,
+      savWith: numeric,
+      domiBank: numeric,
+      posT: numeric,
+      // Prediction fields (flat structure)
+      predictionNo: numeric,
+      predictionAmount: numeric,
+      // Bank Statement 2 fields (flat structure)
+      exAmt: numeric,
+      exPurpose: Joi.string().optional()
     })
   }),
   submit: Joi.object({

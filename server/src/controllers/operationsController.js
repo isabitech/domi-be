@@ -8,7 +8,7 @@ import OperationsService from '../services/OperationsService.js';
 class OperationsController {
   getDailyOperations = asyncHandler(async (req, res) => {
     const operations = await OperationsService.getDaily(req);
-    success(res, { operations }, 'Data loaded');
+    success(res, { operations }, 'Daily operations fetched');
   });
 
   // @desc    Create or update daily operations
@@ -16,7 +16,7 @@ class OperationsController {
   // @access  Private (BR only)
   createOrUpdateDailyOperations = asyncHandler(async (req, res) => {
     const dailyOps = await OperationsService.createOrUpdate(req);
-    success(res, { dailyOps }, 'Data saved', 201);
+    success(res, { dailyOps }, 'Daily operations saved', 201);
   });
 
   // @desc    Submit daily operations
@@ -24,7 +24,7 @@ class OperationsController {
   // @access  Private (BR only)
   submitDailyOperations = asyncHandler(async (req, res) => {
     const dailyOps = await OperationsService.submit(req);
-    success(res, { dailyOps }, 'Data submitted');
+    success(res, { dailyOps }, 'Daily operations submitted');
   });
 
   // @desc    Update HO fields
@@ -32,7 +32,15 @@ class OperationsController {
   // @access  Private (HO only)
   updateHOFields = asyncHandler(async (req, res) => {
     const result = await OperationsService.updateHOFields(req);
-    success(res, result, 'Fields updated');
+    success(res, result, 'HO fields updated');
+  });
+
+  // @desc    Get all daily operations
+  // @route   GET /api/operations/all
+  // @access  Private
+  getAllDailyOperations = asyncHandler(async (req, res) => {
+    const data = await OperationsService.getAllDaily(req);
+    success(res, data, 'All operations loaded');
   });
 
   // @desc    List operations history (paginated)

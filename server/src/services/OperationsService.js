@@ -226,6 +226,37 @@ class OperationsService {
     if (Object.keys(updateData).length) await BankStatement2.findByIdAndUpdate(bs2Id, updateData);
   }
 
+  // Fetch all daily operations
+  static async getAllDaily(req) {
+    const { branchId } = req.query;
+    
+    let query = {};
+    if (req.user.role === 'BR') {
+      query.branch = req.user.branch;
+    } else if (req.user.role === 'admin' && branchId) {
+      query.branch = branchId;
+    } else if (branchId) {
+      query.branch = branchId;
+    }
+
+    const operations = await DailyOperations.find(query)
+      .populate('branch', 'name code')
+      .populate('user', 'name email')
+      .populate('cashbook1')
+      .populate('cashbook2')
+      .populate('prediction')
+      .populate('bankStatement1')
+      .populate('bankStatement2')
+      .populate('loanRegister')
+      .populate('savingsRegister')
+      .sort({ date: -1 });
+
+    return {
+      operations,
+      total: operations.length
+    };
+  }
+
   // History listing with pagination & filters
   static async listHistory(req) {
     const { startDate, endDate, branchId } = req.query;

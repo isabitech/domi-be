@@ -18,6 +18,7 @@ router
 router.patch('/daily/:id/submit', requirePermission('operations:daily:modify'), validate(operationsSchemas.submit), tryCatch(operationsController.submitDailyOperations));
 router.patch('/ho-fields', authorizeHO, validate(operationsSchemas.updateHOFields), tryCatch(operationsController.updateHOFields));
 
+router.get('/all', requirePermission('operations:daily:view'), tryCatch(operationsController.getAllDailyOperations));
 router.get('/history', requirePermission('operations:history:view'), tryCatch(operationsController.listHistory));
 
 export default router;
