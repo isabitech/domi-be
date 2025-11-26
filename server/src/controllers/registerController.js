@@ -3,7 +3,7 @@ import { success } from '../utils/response.js';
 import LoanRegister from '../models/LoanRegister.js';
 import SavingsRegister from '../models/SavingsRegister.js';
 import Branch from '../models/Branch.js';
-import { ForbiddenError, NotFoundError } from '../utils/errors.js';
+import { ForbiddenError, NotFoundError, ValidationError } from '../utils/errors.js';
 
 class RegisterController {
   getLoanRegister = asyncHandler(async (req, res) => {
@@ -11,7 +11,12 @@ class RegisterController {
     const targetDate = date ? new Date(date) : new Date();
     const start = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
     const end = new Date(start.getTime() + 24*60*60*1000);
-    const branch = req.user.role === 'BR' ? req.user.branch : branchId;
+    const branch = req.user.role === 'BR'
+      ? (req.user.branch?._id || req.user.branch)
+      : (branchId || req.user.branch?._id || req.user.branch);
+    if (!branch) {
+      throw new ValidationError('branchId is required to fetch loan register');
+    }
     const lr = await LoanRegister.findOne({ branch, date: { $gte: start, $lt: end } });
     if (!lr) throw new NotFoundError('Loan register not found for date');
     success(res, { loanRegister: lr }, 'Loan register fetched');
@@ -22,7 +27,12 @@ class RegisterController {
     const targetDate = date ? new Date(date) : new Date();
     const start = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
     const end = new Date(start.getTime() + 24*60*60*1000);
-    const branch = req.user.role === 'BR' ? req.user.branch : branchId;
+    const branch = req.user.role === 'BR'
+      ? (req.user.branch?._id || req.user.branch)
+      : (branchId || req.user.branch?._id || req.user.branch);
+    if (!branch) {
+      throw new ValidationError('branchId is required to fetch savings register');
+    }
     const sr = await SavingsRegister.findOne({ branch, date: { $gte: start, $lt: end } });
     if (!sr) throw new NotFoundError('Savings register not found for date');
     success(res, { savingsRegister: sr }, 'Savings register fetched');

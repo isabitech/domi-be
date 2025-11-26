@@ -7,6 +7,7 @@ import { AuthError, DuplicateError, NotFoundError, ValidationError } from '../ut
 import RevokedToken from '../models/RevokedToken.js';
 import { listPermissions } from '../utils/permissions.js';
 import { logAudit, AUDIT_ACTIONS } from '../utils/audit.js';
+import { enqueueEmail } from '../utils/emailQueue.js';
 
 class AuthService {
 
@@ -116,15 +117,25 @@ class AuthService {
     async notifyHeadOfficeOnBranchLogin(user) {
         if (user.role !== 'BR') return;
         try {
-            const hoUsers = await User.find({ role: 'HO', isActive: true });
-            const branch = await Branch.findById(user.branch);
-            for (const ho of hoUsers) {
-                await sendEmail({
+            const [hoUsers, branch] = await Promise.all([
+                User.find({ role: 'HO', isActive: true }).select('email name').lean(),
+                Branch.findById(user.branch).select('name code').lean()
+            ]);
+
+            if (!hoUsers.length) return;
+
+            const branchName = branch?.name || 'Unknown';
+            const branchCode = branch?.code ? ` (${branch.code})` : '';
+            const loginTime = new Date().toLocaleString();
+            const message = `Branch ${branchName}${branchCode} (${user.name}) logged in at ${loginTime}`;
+
+            hoUsers.forEach((ho) => {
+                enqueueEmail({
                     email: ho.email,
                     subject: 'Branch Login Notification',
-                    message: `Branch ${branch?.name || 'Unknown'} (${user.name}) logged in at ${new Date().toLocaleString()}`
+                    message
                 });
-            }
+            });
         } catch (e) {
             console.log('Email failed:', e.message);
         }

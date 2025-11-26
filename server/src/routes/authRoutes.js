@@ -13,7 +13,7 @@ router.put('/reset-password/:resettoken', validate(authSchemas.reset), tryCatch(
 
 // All other endpoints require authentication
 router.use(protect);
-// router.post('/register', validate(authSchemas.register), tryCatch(authController.register));
+router.post('/register', validate(authSchemas.register), tryCatch(authController.register));
 router.post('/logout', tryCatch(authController.logout));
 router.get('/me', tryCatch(authController.getMe));
 

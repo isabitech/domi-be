@@ -57,6 +57,7 @@ export const operationsSchemas = {
   createOrUpdate: Joi.object({
     body: Joi.object({
       date: Joi.date().iso().optional(),
+      branchId: id.optional(),
       cashbook1,
       cashbook2,
       prediction,

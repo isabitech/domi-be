@@ -136,7 +136,9 @@ class ReportsService {
   }
 
   static async consolidated(req) {
-    if (req.user.role !== 'HO') throw new ForbiddenError('Access denied. Head Office users only.');
+    if (req.user.role !== 'HO' && req.user.role !== 'admin') {
+      throw new ForbiddenError('Access denied. Head Office users only.');
+    }
     const { dateFilter, periodStart, periodEnd } = ReportsService.buildConsolidatedDateFilter(req);
     const consolidatedData = await ReportsService.aggregateConsolidatedData(dateFilter);
     const grandTotalsRaw = await ReportsService.aggregateGrandTotals(dateFilter);

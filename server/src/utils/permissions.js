@@ -1,27 +1,25 @@
 import { ForbiddenError } from '../utils/errors.js';
 // Simple RBAC permission map with inheritance
-// Roles assumed: employee < BR < manager < HO < admin
-const roleHierarchy = ['BR', 'HO',];
+// Roles assumed: employee < BR < HO < admin
+const roleHierarchy = ['employee', 'BR', 'HO'];
+const employeePermissions = [
+  'cashbook:view',
+  'cashbook:create',
+  'reports:view',
+  'registers:view',
+  'bankstatements:view',
+  'prediction:view',
+  'disbursement:view'
+];
+
 const basePermissions = {
-  employee: [
-    'cashbook:view',
-    'cashbook:create',
-    'reports:view',
-    'registers:view',
-    'bankstatements:view',
-    'prediction:view',
-    'disbursement:view'
-  ],
+  employee: employeePermissions,
   BR: [
+    ...employeePermissions,
     'dashboard:branch',
     'operations:daily:view',
     'operations:daily:modify',
-    'reports:view',
-    'registers:view',
-    'prediction:view',
-    'prediction:modify',
-    'bankstatements:view',
-    'disbursement:view'
+    'prediction:modify'
   ],
   HO: [
     'reports:consolidated',

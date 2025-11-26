@@ -1,6 +1,6 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { success } from '../utils/response.js';
-import { ForbiddenError } from '../utils/errors.js';
+import { ForbiddenError, ValidationError } from '../utils/errors.js';
 import DashboardService from '../services/DashboardService.js';
 
 // DashboardController delegates data assembly to DashboardService
@@ -9,8 +9,17 @@ class DashboardController {
   // @route GET /api/dashboard/branch
   // @access Private (BR only)
   getBranchDashboard = asyncHandler(async (req, res) => {
-    if (req.user.role !== 'BR') throw new ForbiddenError('Access denied. Branch users only.');
-    const dashboardData = await DashboardService.branchDashboard(req);
+    const isAdmin = req.user.role === 'admin';
+    if (req.user.role !== 'BR' && !isAdmin) {
+      throw new ForbiddenError('Access denied. Branch users only.');
+    }
+    const branchId = req.user.role === 'BR'
+      ? (req.user.branch?._id || req.user.branch)
+      : (req.query.branchId || req.user.branch?._id || req.user.branch);
+    if (!branchId) {
+      throw new ValidationError('branchId is required to view branch dashboard');
+    }
+    const dashboardData = await DashboardService.branchDashboard(req, branchId);
     success(res, { dashboardData }, 'Branch dashboard fetched');
   });
 
@@ -18,7 +27,7 @@ class DashboardController {
   // @route GET /api/dashboard/ho
   // @access Private (HO only)
   getHODashboard = asyncHandler(async (req, res) => {
-    if (req.user.role !== 'HO') throw new ForbiddenError('Access denied. Head Office users only.');
+    if (req.user.role !== 'HO' && req.user.role !== 'admin') throw new ForbiddenError('Access denied. Head Office users only.');
     const dashboardData = await DashboardService.hoDashboard(req);
     success(res, { dashboardData }, 'Head office dashboard fetched');
   });

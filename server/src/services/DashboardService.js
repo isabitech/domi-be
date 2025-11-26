@@ -7,7 +7,7 @@ import DisbursementRoll from '../models/DisbursementRoll.js';
 import Branch from '../models/Branch.js';
 
 class DashboardService {
-  static async branchDashboard(req) {
+  static async branchDashboard(req, branchId) {
     const { startDate, endDate } = req.query;
     const today = new Date();
     const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -21,10 +21,11 @@ class DashboardService {
       dateFilter = { date: { $gte: thirtyDaysAgo, $lte: today } };
     }
 
-    const query = { branch: req.user.branch, ...dateFilter };
+    const resolvedBranchId = branchId && branchId._id ? branchId._id : branchId;
+    const query = { branch: resolvedBranchId, ...dateFilter };
 
     const todayOperations = await DailyOperations.findOne({
-      branch: req.user.branch,
+      branch: resolvedBranchId,
       date: { $gte: startOfToday, $lt: endOfToday }
     }).populate(['cashbook1', 'cashbook2', 'loanRegister', 'savingsRegister']);
 
@@ -51,17 +52,17 @@ class DashboardService {
 
     const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
     const trendDataRaw = await DailyOperations.find({
-      branch: req.user.branch,
+      branch: resolvedBranchId,
       date: { $gte: sevenDaysAgo, $lte: today }
     }).populate(['cashbook1', 'cashbook2']).sort({ date: 1 });
 
-    const currentLoanRegister = await LoanRegister.findOne({ branch: req.user.branch }).sort({ date: -1 });
-    const currentSavingsRegister = await SavingsRegister.findOne({ branch: req.user.branch }).sort({ date: -1 });
+    const currentLoanRegister = await LoanRegister.findOne({ branch: resolvedBranchId }).sort({ date: -1 });
+    const currentSavingsRegister = await SavingsRegister.findOne({ branch: resolvedBranchId }).sort({ date: -1 });
 
     const currentMonth = today.getMonth() + 1;
     const currentYear = today.getFullYear();
     const disbursementRoll = await DisbursementRoll.findOne({
-      branch: req.user.branch,
+      branch: resolvedBranchId,
       month: currentMonth,
       year: currentYear
     });

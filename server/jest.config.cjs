@@ -5,5 +5,5 @@ module.exports = {
   testTimeout: 60000,
   verbose: true,
   maxWorkers: 1,
-  testMatch: ['**/formulas.test.js']
+  testMatch: ['**/*.test.js']
 };
