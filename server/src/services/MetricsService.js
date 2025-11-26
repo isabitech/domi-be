@@ -6,7 +6,7 @@ class MetricsService {
   // Build date range for a single day
   static buildDateRange(dateStr) {
     const target = dateStr ? new Date(dateStr) : new Date();
-    if (isNaN(target.getTime())) throw new ValidationError('Invalid date provided');
+    if (isNaN(target.getTime())) throw new ValidationError('Bad date format');
     const start = new Date(target.getFullYear(), target.getMonth(), target.getDate());
     const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
     return { start, end };

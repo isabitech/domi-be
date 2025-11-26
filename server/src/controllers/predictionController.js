@@ -22,7 +22,7 @@ class PredictionController {
 
   createOrUpdatePrediction = asyncHandler(async (req, res) => {
     if (req.user.role !== 'BR' && req.user.role !== 'admin') {
-      throw new ForbiddenError('Only BR users can create prediction');
+      throw new ForbiddenError('Only branch users allowed');
     }
     const { predictionNo, predictionAmount, predictionDate, branchId } = req.body;
     const targetDate = predictionDate ? new Date(predictionDate) : new Date(new Date().getTime() + 24*60*60*1000);

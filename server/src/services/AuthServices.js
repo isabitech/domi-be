@@ -21,7 +21,7 @@ class AuthService {
         const { name, email, password, role, branch } = data;
 
         const exists = await User.findOne({ email });
-        if (exists) throw new DuplicateError('User already exists');
+        if (exists) throw new DuplicateError('Email already used');
 
         const user = await User.create({
             name,
@@ -62,7 +62,7 @@ class AuthService {
         // allow login by email OR username
         const identifier = email || username || data.email || data.username;
         const user = await User.findOne({ $or: [{ email: identifier }, { username: identifier }] }).select('+password').populate('branch');
-        if (!user || !user.isActive) throw new AuthError('Invalid credentials');
+        if (!user || !user.isActive) throw new AuthError('Wrong email or password');
         await this.verifyPassword(user, password);
 
         // generate token and compute expiresIn seconds
@@ -94,7 +94,7 @@ class AuthService {
     // Helper: Validate login input (accepts email OR username)
     validateLoginInput(data) {
         const { email, username, password } = data;
-        if ((!email && !username) || !password) throw new ValidationError('Email/username and password are required');
+        if ((!email && !username) || !password) throw new ValidationError('Email and password required');
         return { email, username, password };
     }
 
@@ -110,7 +110,7 @@ class AuthService {
     // Helper: Verify password
     async verifyPassword(user, password) {
         const isMatch = await user.comparePassword(password);
-        if (!isMatch) throw new AuthError('Invalid credentials');
+        if (!isMatch) throw new AuthError('Wrong email or password');
     }
 
     // Helper: Notify HO on branch login (silent failure)

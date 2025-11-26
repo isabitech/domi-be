@@ -153,16 +153,16 @@ class CashbookService {
     if (entryDay.getTime() !== today.getTime()) {
       throw new ValidationError('Can only delete cashbook entries on the same day');
     }
-    const cutoffHour = (await import('../config/index.js')).config.server.editCutoffHour;
-    if (now.getHours() >= cutoffHour) {
-      throw new ForbiddenError(`Edit window closed after ${cutoffHour}:00`);
-    }
+    // const cutoffHour = (await import('../config/index.js')).config.server.editCutoffHour;
+    // if (now.getHours() >= cutoffHour) {
+    //   throw new ForbiddenError(`Edit window closed after ${cutoffHour}:00`);
+    // }
 
     const canDelete =
       req.user.role === 'admin' ||
       (req.user.role === 'manager' && entry.branch.toString() === req.user.branch.toString()) ||
       (entry.user.toString() === req.user.id && entry.status === 'pending');
-    if (!canDelete) throw new ForbiddenError('Not authorized to delete this entry');
+    if (!canDelete) throw new ForbiddenError('Access denied');
 
     await Cashbook.findByIdAndDelete(req.params.id);
     logAudit({
@@ -179,7 +179,7 @@ class CashbookService {
   static async updateStatus(req) {
     const { status, notes } = req.body;
     if (!['approved', 'rejected'].includes(status)) {
-      throw new ValidationError('Status must be either approved or rejected');
+      throw new ValidationError('Status must be approved or rejected');
     }
     const entry = await Cashbook.findById(req.params.id);
     if (!entry) throw new NotFoundError('Cashbook entry not found');

@@ -27,9 +27,9 @@ class DashboardController {
   // @route GET /api/dashboard/ho
   // @access Private (HO only)
   getHODashboard = asyncHandler(async (req, res) => {
-    if (req.user.role !== 'HO' && req.user.role !== 'admin') throw new ForbiddenError('Access denied. Head Office users only.');
-    const dashboardData = await DashboardService.hoDashboard(req);
-    success(res, { dashboardData }, 'Head office dashboard fetched');
+    if (req.user.role !== 'HO' && req.user.role !== 'admin') throw new ForbiddenError('Only HO users allowed');
+    const dashboardData = await DashboardService.getHODashboard();
+    success(res, { dashboardData }, 'Dashboard loaded');
   });
 }
 

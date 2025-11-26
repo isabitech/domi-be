@@ -21,11 +21,11 @@ class OperationsService {
   }
 
   // Cutoff enforcement
-  static async enforceCutoff() {
-    const now = new Date();
-    const cutoffHour = (await import('../config/index.js')).config.server.editCutoffHour;
-    if (now.getHours() >= cutoffHour) throw new ForbiddenError(`Edit window closed after ${cutoffHour}:00`);
-  }
+  // static async enforceCutoff() {
+  //   const now = new Date();
+  //   const cutoffHour = (await import('../config/index.js')).config.server.editCutoffHour;
+  //   if (now.getHours() >= cutoffHour) throw new ForbiddenError(`Edit window closed after ${cutoffHour}:00`);
+  // }
 
   // Cashbook builders
   static async buildCashbook1(existingId, branchId, userId, date, data) {
@@ -131,7 +131,7 @@ class OperationsService {
   }
 
   static async createOrUpdate(req) {
-    if (req.user.role !== 'BR') throw new ForbiddenError('Only branch users can create daily operations');
+    if (req.user.role !== 'BR') throw new ForbiddenError('Only branch users allowed');
     // await this.enforceCutoff();
     const payload = req.body;
     const { target, start, end } = this.getDayBounds(payload.date);
@@ -171,10 +171,10 @@ class OperationsService {
     if (!dailyOps) throw new NotFoundError('Daily operations not found');
     if (dailyOps.user.toString() !== req.user.id) throw new ForbiddenError('Not authorized to submit this record');
     const now = new Date();
-    const cutoffHour = (await import('../config/index.js')).config.server.editCutoffHour;
-    if (now.getHours() >= cutoffHour) {
-      throw new ForbiddenError(`Submission window closed after ${cutoffHour}:00`);
-    }
+    // const cutoffHour = (await import('../config/index.js')).config.server.editCutoffHour;
+    // if (now.getHours() >= cutoffHour) {
+    //   throw new ForbiddenError(`Too late - cutoff at ${cutoffHour}:00`);
+    // }
     dailyOps.isCompleted = true; dailyOps.submittedAt = new Date(); await dailyOps.save();
     if (dailyOps.cashbook1) await Cashbook1.findByIdAndUpdate(dailyOps.cashbook1, { isSubmitted: true, submittedAt: new Date() });
     if (dailyOps.cashbook2) await Cashbook2.findByIdAndUpdate(dailyOps.cashbook2, { isSubmitted: true, submittedAt: new Date() });
@@ -182,7 +182,7 @@ class OperationsService {
   }
 
   static async updateHOFields(req) {
-    if (req.user.role !== 'HO') throw new ForbiddenError('Only Head Office can update these fields');
+    if (req.user.role !== 'HO') throw new ForbiddenError('Only HO allowed');
     const { branchId, date } = req.body;
     const { target, start, end } = this.getDayBounds(date);
     await this.updateBranchPreviousValues(req.body, branchId);

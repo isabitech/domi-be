@@ -154,7 +154,7 @@ app.get(`${API_PREFIX}/permissions`, (req, res) => {
     role,
     permissions: listPermissions(role)
   }));
-  success(res, { permissions: map }, 'Permissions listing');
+  success(res, { permissions: map }, 'Permissions loaded');
 });
 
 // Metrics endpoint
@@ -173,7 +173,7 @@ app.get(`${API_PREFIX}/system-metrics`,
 
 // Catch unknown routes
 app.use((req, res) => {
-  failure(res, new NotFoundError('Route not found'));
+  failure(res, new NotFoundError('Page not found'));
 });
 
 // Error handler — increments error count
