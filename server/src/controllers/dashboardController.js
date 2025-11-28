@@ -28,7 +28,7 @@ class DashboardController {
   // @access Private (HO only)
   getHODashboard = asyncHandler(async (req, res) => {
     if (req.user.role !== 'HO' && req.user.role !== 'admin') throw new ForbiddenError('Only HO users allowed');
-    const dashboardData = await DashboardService.getHODashboard();
+    const dashboardData = await DashboardService.hoDashboard(req);
     success(res, { dashboardData }, 'Dashboard loaded');
   });
 }
