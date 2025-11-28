@@ -55,9 +55,10 @@ class OperationsService {
   }
 
   // Bank statements builders
-  static async buildBankStatement1(existingId, branchId, date, cb1, cb2) {
+  static async buildBankStatement1(existingId, branchId, date, cb1, cb2, opening = 0) {
     const bs1 = existingId ? await BankStatement1.findById(existingId) : new BankStatement1();
     bs1.branch = branchId; bs1.date = date;
+    bs1.opening = opening;
     bs1.recHO = cb1.frmHO; bs1.recBO = cb1.frmBR; bs1.domi = cb2.domiBank; bs1.pa = cb2.posT;
     await bs1.save();
     return bs1;
@@ -142,7 +143,7 @@ class OperationsService {
     const cb1 = await this.buildCashbook1(dailyOps?.cashbook1, req.user.branch, req.user.id, target, payload);
     const cb2 = await this.buildCashbook2(dailyOps?.cashbook2, req.user.branch, req.user.id, target, payload);
     const prediction = await this.buildPrediction(dailyOps?.prediction, req.user.branch, req.user.id, target, payload);
-    const bs1 = await this.buildBankStatement1(dailyOps?.bankStatement1, req.user.branch, target, cb1, cb2);
+    const bs1 = await this.buildBankStatement1(dailyOps?.bankStatement1, req.user.branch, target, cb1, cb2, payload.opening? payload.opening : 0);
     const bs2 = await this.buildBankStatement2(dailyOps?.bankStatement2, req.user.branch, req.user.id, target, cb1, payload);
     const loanRegister = await this.buildLoanRegister(dailyOps?.loanRegister, req.user.branch, target, branchMeta, cb2, cb1);
     const savingsRegister = await this.buildSavingsRegister(dailyOps?.savingsRegister, req.user.branch, target, branchMeta, cb1, cb2);
@@ -229,7 +230,7 @@ class OperationsService {
   // Fetch all daily operations
   static async getAllDaily(req) {
     const { branchId } = req.query;
-    
+
     let query = {};
     if (req.user.role === 'BR') {
       query.branch = req.user.branch;
