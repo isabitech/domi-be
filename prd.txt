@@ -28,7 +28,8 @@ Oversees all branch
 operations 
 Manages daily operations 
 and inputs daily financial 
-data 
+data NOTABLE ENHANCEMENTS BEYOND PRD
+ 
 Permissions 
 Create/edit branch profiles, input control fields 
 (non-editable to branches), view all dashboards, 

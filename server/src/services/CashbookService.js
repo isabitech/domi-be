@@ -111,10 +111,10 @@ class CashbookService {
     if (entryDay.getTime() !== today.getTime()) {
       throw new ValidationError('Can only edit cashbook entries on the same day');
     }
-    const cutoffHour = (await import('../config/index.js')).config.server.editCutoffHour;
-    if (now.getHours() >= cutoffHour) {
-      throw new ForbiddenError(`Edit window closed after ${cutoffHour}:00`);
-    }
+    // const cutoffHour = (await import('../config/index.js')).config.server.editCutoffHour;
+    // if (now.getHours() >= cutoffHour) {
+    //   throw new ForbiddenError(`Edit window closed after ${cutoffHour}:00`);
+    // }
     if (entry.user.toString() !== req.user.id) throw new ForbiddenError('Not authorized to edit this entry');
     if (entry.status === 'approved') throw new ValidationError('Cannot edit approved entries');
 

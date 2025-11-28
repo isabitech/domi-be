@@ -10,12 +10,12 @@ class AuthController {
 
   login = asyncHandler(async (req, res) => {
     const result = await authService.login(req.body, req);
-    success(res, result, 'Login ok');
+    success(res, result, 'Login successful');
   });
 
   getMe = asyncHandler(async (req, res) => {
     const user = await authService.getMe(req.user.id);
-    success(res, user, 'Profile loaded');
+    success(res, user, 'Profile fetched');
   });
 
   forgotPassword = asyncHandler(async (req, res) => {
@@ -30,13 +30,13 @@ class AuthController {
       req.user,
       req
     );
-    success(res, result, 'Password reset ok');
+    success(res, result, 'Password reset successful');
   });
 
   logout = asyncHandler(async (req, res) => {
     const rawToken = req.token || (req.headers.authorization && req.headers.authorization.split(' ')[1]);
     await authService.revokeToken(rawToken, req.user, req);
-    success(res, {}, 'Logged out');
+    success(res, {}, 'Logged out successfully');
   });
 }
 
