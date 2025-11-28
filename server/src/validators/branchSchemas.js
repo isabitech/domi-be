@@ -18,9 +18,10 @@ export const branchSchemas = {
       address: Joi.string().allow('', null).optional(),
       phone: Joi.string().allow('', null).optional(),
       email: Joi.string().email().allow('', null).optional(),
-      manager: Joi.string().hex().length(24).optional(),
-      managerEmail: Joi.string().email().optional(),
-      managerPassword: Joi.string().min(8).optional(),
+      managerName: Joi.string().min(2).required(),
+      managerUsername: Joi.string().min(3).max(50).optional(),
+      managerEmail: Joi.string().email().required(),
+      managerPassword: Joi.string().min(8).required(),
       operationHours: Joi.string().optional(),
       dailyLimit: Joi.number().min(0).optional()
     })

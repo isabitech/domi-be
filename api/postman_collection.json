@@ -218,10 +218,10 @@
               { "key": "Authorization", "value": "Bearer {{bearer_token}}" }
             ],
             "url": "{{base_url}}/branches",
-            "description": "Requires branch:create permission. Body fields align with branchSchemas.create (code length 5, optional manager creds).",
+            "description": "Requires branch:create permission. Body must include manager identity so the API can auto-provision the branch manager user.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Lagos Central\",\n  \"code\": \"LG001\",\n  \"address\": \"23 Marina, Lagos\",\n  \"phone\": \"+234-800-111-0000\",\n  \"email\": \"lagos@dominion.test\",\n  \"manager\": \"{{USER_ID}}\",\n  \"managerEmail\": \"manager@dominion.test\",\n  \"managerPassword\": \"TempPass!23\",\n  \"operationHours\": \"08:00-17:00\",\n  \"dailyLimit\": 5000000\n}",
+              "raw": "{\n  \"name\": \"Lagos Central\",\n  \"code\": \"LG001\",\n  \"address\": \"23 Marina, Lagos\",\n  \"phone\": \"+234-800-111-0000\",\n  \"email\": \"lagos@dominion.test\",\n  \"managerName\": \"Ada Branch\",\n  \"managerUsername\": \"ada.lagos\",\n  \"managerEmail\": \"manager@dominion.test\",\n  \"managerPassword\": \"TempPass!23\",\n  \"operationHours\": \"08:00-17:00\",\n  \"dailyLimit\": 5000000\n}",
               "options": { "raw": { "language": "json" } }
             }
           }

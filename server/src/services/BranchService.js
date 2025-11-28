@@ -1,174 +1,222 @@
-import User from "../models/User";
-import Branch from "../models/Branch.js";
+import mongoose from 'mongoose';
+import Branch from '../models/Branch.js';
+import User from '../models/User.js';
 import { logAudit, AUDIT_ACTIONS } from '../utils/audit.js';
+import { DuplicateError, NotFoundError, ValidationError } from '../utils/errors.js';
+import { parsePagination, buildPaginationMeta } from '../utils/pagination.js';
 
 class BranchService {
-    async getBranches({ page, limit, search }) {
-        const p = parseInt(page) || 1;
-        const l = parseInt(limit) || 10;
-        const skip = (p - 1) * l;
-
-        const query = search
+    async listBranches(query = {}) {
+        const { page, limit, skip } = parsePagination(query);
+        const searchFilter = query.search
             ? {
-                $or: [
-                    { name: { $regex: search, $options: "i" } },
-                    { code: { $regex: search, $options: "i" } }
-                ]
-            }
+                    $or: [
+                        { name: { $regex: query.search, $options: 'i' } },
+                        { code: { $regex: query.search, $options: 'i' } }
+                    ]
+                }
             : {};
 
-        const branches = await Branch.find(query)
-            .populate("manager", "name email")
+        const branches = await Branch.find(searchFilter)
+            .populate('manager', 'name email')
             .skip(skip)
-            .limit(l)
+            .limit(limit)
             .sort({ name: 1 });
 
-        const total = await Branch.countDocuments(query);
+        const total = await Branch.countDocuments(searchFilter);
 
         return {
             count: branches.length,
             total,
-            pagination: {
-                page: p,
-                limit: l,
-                pages: Math.ceil(total / l)
-            },
-            data: branches
+            pagination: buildPaginationMeta(total, page, limit),
+            branches
         };
     }
-    async getBranch(id) {
-        const branch = await Branch.findById(id).populate("manager", "name email");
-        if (!branch) throw new Error("Branch not found");
+
+    async getBranchById(id) {
+        const branch = await Branch.findById(id).populate('manager', 'name email');
+        if (!branch) throw new NotFoundError('Branch not found');
         return branch;
     }
-    async createBranch(data, reqUser, req) {
-        const { name, code, address, phone, email, manager } = data;
 
-        const exists = await Branch.findOne({
-            $or: [{ name }, { code }]
-        });
+    async ensureBranchUniqueness(name, code, excludeId) {
+        const filters = [];
+        if (name) filters.push({ name: name.trim() });
+        if (code) filters.push({ code: code.trim() });
+        if (!filters.length) return;
+        const query = { $or: filters };
+        if (excludeId) query._id = { $ne: excludeId };
+        const conflict = await Branch.findOne(query);
+        if (conflict) throw new DuplicateError('Branch with this name or code already exists');
+    }
 
-        if (exists) throw new Error("Branch with this name or code already exists");
+    async ensureManagerUniqueness(email, username) {
+        const checks = [{ email: email.toLowerCase() }];
+        if (username) checks.push({ username });
+        const conflict = await User.findOne({ $or: checks });
+        if (conflict) throw new DuplicateError('Manager user with this email or username already exists');
+    }
 
-        if (manager) {
-            const managerUser = await User.findById(manager);
-            if (!managerUser) throw new Error("Manager user not found");
-        }
+    formatAddress(address) {
+        if (!address) return undefined;
+        if (typeof address === 'string') return { street: address };
+        return address;
+    }
 
-        const branch = await Branch.create({
+    async createBranch(payload, actor, reqMeta) {
+        const {
             name,
             code,
             address,
             phone,
             email,
-            manager
-        });
+            managerName,
+            managerUsername,
+            managerEmail,
+            managerPassword,
+            operationHours,
+            dailyLimit
+        } = payload;
 
-        await branch.populate("manager", "name email");
+        await this.ensureBranchUniqueness(name, code);
+
+        const usernameCandidate = (managerUsername || managerEmail?.split('@')[0] || '').trim() || undefined;
+        await this.ensureManagerUniqueness(managerEmail, usernameCandidate);
+
+        const session = await mongoose.startSession();
+        let branch;
+
+        await session
+            .withTransaction(async () => {
+                const [managerUser] = await User.create(
+                    [
+                        {
+                            name: managerName.trim(),
+                            username: usernameCandidate,
+                            email: managerEmail.toLowerCase(),
+                            password: managerPassword,
+                            role: 'BR'
+                        }
+                    ],
+                    { session }
+                );
+
+                const [createdBranch] = await Branch.create(
+                    [
+                        {
+                            name: name.trim(),
+                            code: code.trim(),
+                            address: this.formatAddress(address),
+                            phone,
+                            email,
+                            manager: managerUser._id,
+                            managerEmail,
+                            managerPassword,
+                            operationHours,
+                            dailyLimit
+                        }
+                    ],
+                    { session }
+                );
+
+                await User.updateOne({ _id: managerUser._id }, { branch: createdBranch._id }, { session });
+                branch = createdBranch;
+            })
+            .finally(() => session.endSession());
+
+        await branch.populate('manager', 'name email');
         logAudit({
-            user: reqUser,
+            user: actor,
             action: AUDIT_ACTIONS.CREATE,
             resource: 'branch',
             resourceId: branch._id.toString(),
             oldDoc: null,
             newDoc: branch.toObject(),
-            req,
+            req: reqMeta,
             extra: { branchId: branch._id.toString(), branchCode: branch.code }
         });
         return branch;
     }
-    async updateBranch(id, data, reqUser, req) {
-        const { name, code, address, phone, email, manager } = data;
+
+    async updateBranch(id, payload, actor, reqMeta) {
+        const { name, code, address, phone, email, manager } = payload;
 
         const branch = await Branch.findById(id);
-        if (!branch) throw new Error("Branch not found");
+        if (!branch) throw new NotFoundError('Branch not found');
         const oldSnapshot = branch.toObject();
 
-        if (name || code) {
-            const duplicate = await Branch.findOne({
-                _id: { $ne: id },
-                $or: [
-                    ...(name ? [{ name }] : []),
-                    ...(code ? [{ code }] : [])
-                ]
-            });
-
-            if (duplicate) {
-                throw new Error("Branch with this name or code already exists");
-            }
-        }
+        await this.ensureBranchUniqueness(name, code, id);
 
         if (manager) {
             const managerUser = await User.findById(manager);
-            if (!managerUser) throw new Error("Manager user not found");
+            if (!managerUser) throw new ValidationError('Manager user not found');
         }
 
-        const updated = await Branch.findByIdAndUpdate(
-            id,
-            { name, code, address, phone, email, manager },
-            { new: true, runValidators: true }
-        ).populate("manager", "name email");
+        if (name) branch.name = name.trim();
+        if (code) branch.code = code.trim();
+        if (address !== undefined) branch.address = this.formatAddress(address);
+        if (phone !== undefined) branch.phone = phone;
+        if (email !== undefined) branch.email = email;
+        if (manager !== undefined) branch.manager = manager;
+
+        await branch.save();
+        await branch.populate('manager', 'name email');
 
         logAudit({
-            user: reqUser,
+            user: actor,
             action: AUDIT_ACTIONS.UPDATE,
             resource: 'branch',
-            resourceId: updated._id.toString(),
+            resourceId: branch._id.toString(),
             oldDoc: oldSnapshot,
-            newDoc: updated.toObject(),
-            req,
-            extra: { branchId: updated._id.toString(), branchCode: updated.code }
+            newDoc: branch.toObject(),
+            req: reqMeta,
+            extra: { branchId: branch._id.toString(), branchCode: branch.code }
         });
 
-        return updated;
+        return branch;
     }
-    async deleteBranch(id, reqUser, req) {
+
+    async deleteBranch(id, actor, reqMeta) {
         const branch = await Branch.findById(id);
-        if (!branch) throw new Error("Branch not found");
+        if (!branch) throw new NotFoundError('Branch not found');
         const oldSnapshot = branch.toObject();
 
         const usersCount = await User.countDocuments({ branch: id });
-        if (usersCount > 0) {
-            throw new Error("Cannot delete branch with associated users");
-        }
+        if (usersCount > 0) throw new ValidationError('Cannot delete branch with associated users');
 
         await Branch.findByIdAndDelete(id);
         logAudit({
-            user: reqUser,
+            user: actor,
             action: AUDIT_ACTIONS.DELETE,
             resource: 'branch',
             resourceId: branch._id.toString(),
             oldDoc: oldSnapshot,
             newDoc: null,
-            req,
+            req: reqMeta,
             extra: { branchId: branch._id.toString(), branchCode: branch.code }
         });
-        return "Branch deleted successfully";
     }
-    async toggleStatus(id, reqUser, req) {
+
+    async toggleStatus(id, actor, reqMeta) {
         const branch = await Branch.findById(id);
-        if (!branch) throw new Error("Branch not found");
+        if (!branch) throw new NotFoundError('Branch not found');
         const oldSnapshot = branch.toObject();
 
         branch.isActive = !branch.isActive;
         await branch.save();
 
-        const out = {
-            status: branch.isActive,
-            message: `Branch ${branch.isActive ? "activated" : "deactivated"} successfully`,
-            data: branch
-        };
         logAudit({
-            user: reqUser,
+            user: actor,
             action: AUDIT_ACTIONS.STATUS,
             resource: 'branch',
             resourceId: branch._id.toString(),
             oldDoc: oldSnapshot,
             newDoc: branch.toObject(),
-            req,
+            req: reqMeta,
             extra: { branchId: branch._id.toString(), branchCode: branch.code, status: branch.isActive }
         });
-        return out;
+
+        return branch;
     }
 }
 

@@ -93,6 +93,36 @@ components:
         updatedAt:
           type: string
           format: date-time
+    BranchCreateInput:
+      type: object
+      required: [name, code, managerName, managerEmail, managerPassword]
+      properties:
+        name:
+          type: string
+        code:
+          type: string
+          description: 5-character alphanumeric branch code
+        address:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+        managerName:
+          type: string
+        managerUsername:
+          type: string
+        managerEmail:
+          type: string
+          format: email
+        managerPassword:
+          type: string
+          format: password
+        operationHours:
+          type: string
+        dailyLimit:
+          type: integer
+          description: Amount in kobo
     CashbookEntry:
       type: object
       properties:
@@ -378,7 +408,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Branch'
+              $ref: '#/components/schemas/BranchCreateInput'
       responses:
         '201':
           description: Created branch
