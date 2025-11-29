@@ -24,11 +24,11 @@ class UsersController {
   });
 
   create = asyncHandler(async (req, res) => {
-    const { username, email, password, role, branchId } = req.body;
+    const {name, username, email, password, role, branchId } = req.body;
     const exists = await User.findOne({ $or: [{ email }, { username }] });
     if (exists) throw new DuplicateError('User with this email or username already exists');
 
-    const user = await User.create({ name: username, username, email, password, role, branch: branchId });
+    const user = await User.create({ name, username, email, password, role, branch: branchId });
     const out = user.toObject();
     delete out.password;
     logAudit({
