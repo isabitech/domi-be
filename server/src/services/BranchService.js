@@ -75,7 +75,10 @@ class BranchService {
             managerEmail,
             managerPassword,
             operationHours,
-            dailyLimit
+            dailyLimit,
+            previousLoanTotal = 0,
+            previousSavingsTotal = 0,
+            previousDisbursement = 0
         } = payload;
 
         await this.ensureBranchUniqueness(name, code);
@@ -113,7 +116,10 @@ class BranchService {
                             managerEmail,
                             managerPassword,
                             operationHours,
-                            dailyLimit
+                            dailyLimit,
+                            previousLoanTotal,
+                            previousSavingsTotal,
+                            previousDisbursement
                         }
                     ],
                     { session }
