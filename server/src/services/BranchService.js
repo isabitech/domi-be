@@ -131,17 +131,19 @@ class BranchService {
             .finally(() => session.endSession());
 
         await branch.populate('manager', 'name email');
+        const sanitizedBranch = branch.toObject();
+        delete sanitizedBranch.managerPassword;
         logAudit({
             user: actor,
             action: AUDIT_ACTIONS.CREATE,
             resource: 'branch',
             resourceId: branch._id.toString(),
             oldDoc: null,
-            newDoc: branch.toObject(),
+            newDoc: sanitizedBranch,
             req: reqMeta,
             extra: { branchId: branch._id.toString(), branchCode: branch.code }
         });
-        return branch;
+        return sanitizedBranch;
     }
 
     async updateBranch(id, payload, actor, reqMeta) {
