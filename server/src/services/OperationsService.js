@@ -31,7 +31,10 @@ class OperationsService {
   static async buildCashbook1(existingId, branchId, userId, date, data) {
     const src = existingId ? await Cashbook1.findById(existingId) : new Cashbook1();
     src.branch = branchId; src.user = userId; src.date = date;
-    src.pcih = data.pcih || 0; src.savings = data.savings || 0; src.loanCollection = data.loanCollection || 0; src.chargesCollection = data.chargesCollection || 0;
+    src.pcih = data.pcih !== undefined ? data.pcih : (src.pcih || 0);
+    src.savings = data.savings !== undefined ? data.savings : (src.savings || 0);
+    src.loanCollection = data.loanCollection !== undefined ? data.loanCollection : (src.loanCollection || 0);
+    src.chargesCollection = data.chargesCollection !== undefined ? data.chargesCollection : (src.chargesCollection || 0);
     await src.save();
     return src;
   }
@@ -39,7 +42,12 @@ class OperationsService {
   static async buildCashbook2(existingId, branchId, userId, date, data) {
     const src = existingId ? await Cashbook2.findById(existingId) : new Cashbook2();
     src.branch = branchId; src.user = userId; src.date = date;
-    src.disNo = data.disNo || 0; src.disAmt = data.disAmt || 0; src.disWithInt = data.disWithInt || 0; src.savWith = data.savWith || 0; src.domiBank = data.domiBank || 0; src.posT = data.posT || 0;
+    src.disNo = data.disNo !== undefined ? data.disNo : (src.disNo || 0);
+    src.disAmt = data.disAmt !== undefined ? data.disAmt : (src.disAmt || 0);
+    src.disWithInt = data.disWithInt !== undefined ? data.disWithInt : (src.disWithInt || 0);
+    src.savWith = data.savWith !== undefined ? data.savWith : (src.savWith || 0);
+    src.domiBank = data.domiBank !== undefined ? data.domiBank : (src.domiBank || 0);
+    src.posT = data.posT !== undefined ? data.posT : (src.posT || 0);
     await src.save();
     return src;
   }
@@ -49,16 +57,17 @@ class OperationsService {
     const pred = existingId ? await Prediction.findById(existingId) : new Prediction();
     pred.branch = branchId; pred.user = userId; pred.date = baseDate;
     pred.predictionDate = new Date(baseDate.getTime() + 24 * 60 * 60 * 1000);
-    pred.predictionNo = data.predictionNo || 0; pred.predictionAmount = data.predictionAmount || 0;
+    pred.predictionNo = data.predictionNo !== undefined ? data.predictionNo : (pred.predictionNo || 0);
+    pred.predictionAmount = data.predictionAmount !== undefined ? data.predictionAmount : (pred.predictionAmount || 0);
     await pred.save();
     return pred;
   }
 
   // Bank statements builders
-  static async buildBankStatement1(existingId, branchId, date, cb1, cb2, opening = 0) {
+  static async buildBankStatement1(existingId, branchId, date, cb1, cb2, opening) {
     const bs1 = existingId ? await BankStatement1.findById(existingId) : new BankStatement1();
     bs1.branch = branchId; bs1.date = date;
-    bs1.opening = opening;
+    bs1.opening = opening !== undefined ? opening : (bs1.opening ?? 0);
     bs1.recHO = cb1.frmHO; bs1.recBO = cb1.frmBR; bs1.domi = cb2.domiBank; bs1.pa = cb2.posT;
     await bs1.save();
     return bs1;
@@ -67,7 +76,9 @@ class OperationsService {
   static async buildBankStatement2(existingId, branchId, userId, date, cb1, data) {
     const bs2 = existingId ? await BankStatement2.findById(existingId) : new BankStatement2();
     bs2.branch = branchId; bs2.user = userId; bs2.date = date;
-    bs2.withd = cb1.frmHO; bs2.exAmt = data.exAmt || 0; bs2.exPurpose = data.exPurpose || '';
+    bs2.withd = cb1.frmHO;
+    bs2.exAmt = data.exAmt !== undefined ? data.exAmt : (bs2.exAmt || 0);
+    bs2.exPurpose = data.exPurpose !== undefined ? data.exPurpose : (bs2.exPurpose || '');
     await bs2.save();
     return bs2;
   }
@@ -143,7 +154,7 @@ class OperationsService {
     const cb1 = await this.buildCashbook1(dailyOps?.cashbook1, req.user.branch, req.user.id, target, payload);
     const cb2 = await this.buildCashbook2(dailyOps?.cashbook2, req.user.branch, req.user.id, target, payload);
     const prediction = await this.buildPrediction(dailyOps?.prediction, req.user.branch, req.user.id, target, payload);
-    const bs1 = await this.buildBankStatement1(dailyOps?.bankStatement1, req.user.branch, target, cb1, cb2, payload.opening? payload.opening : 0);
+    const bs1 = await this.buildBankStatement1(dailyOps?.bankStatement1, req.user.branch, target, cb1, cb2, payload.opening);
     const bs2 = await this.buildBankStatement2(dailyOps?.bankStatement2, req.user.branch, req.user.id, target, cb1, payload);
     const loanRegister = await this.buildLoanRegister(dailyOps?.loanRegister, req.user.branch, target, branchMeta, cb2, cb1);
     const savingsRegister = await this.buildSavingsRegister(dailyOps?.savingsRegister, req.user.branch, target, branchMeta, cb1, cb2);
