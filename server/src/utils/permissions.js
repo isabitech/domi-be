@@ -37,7 +37,11 @@ const basePermissions = {
     'disbursement:modify',
     'cashbook:approve',
     'cashbook:view',
-    'cashbook:create'
+    'cashbook:create',
+    'branch:create',
+    'branch:update',
+    'branch:delete',
+    'branch:toggle'
   ]
 };
 

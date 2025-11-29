@@ -240,9 +240,14 @@ class OperationsService {
 
   // Fetch all daily operations
   static async getAllDaily(req) {
-    const { branchId } = req.query;
+    const { branchId, date } = req.query;
 
-    let query = {};
+    const query = {};
+    if (date) {
+      const { start, end } = this.getDayBounds(date);
+      query.date = { $gte: start, $lt: end };
+    }
+
     if (req.user.role === 'BR') {
       query.branch = req.user.branch;
     } else if (req.user.role === 'admin' && branchId) {
