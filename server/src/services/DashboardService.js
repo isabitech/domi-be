@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import DailyOperations from '../models/DailyOperations.js';
 import Cashbook1 from '../models/Cashbook1.js';
 import Cashbook2 from '../models/Cashbook2.js';
@@ -22,33 +23,42 @@ class DashboardService {
     }
 
     const resolvedBranchId = branchId && branchId._id ? branchId._id : branchId;
-    const query = { branch: resolvedBranchId, ...dateFilter };
+    const branchObjectId = resolvedBranchId
+      ? resolvedBranchId instanceof mongoose.Types.ObjectId
+        ? resolvedBranchId
+        : new mongoose.Types.ObjectId(resolvedBranchId)
+      : null;
+    const query = { ...dateFilter };
+    if (branchObjectId) query.branch = branchObjectId;
 
     const todayOperations = await DailyOperations.findOne({
       branch: resolvedBranchId,
       date: { $gte: startOfToday, $lt: endOfToday }
     }).populate(['cashbook1', 'cashbook2', 'loanRegister', 'savingsRegister']);
 
-    const summaryStats = await DailyOperations.aggregate([
-      { $match: query },
-      { $lookup: { from: 'cashbook1s', localField: 'cashbook1', foreignField: '_id', as: 'cb1' } },
-      { $lookup: { from: 'cashbook2s', localField: 'cashbook2', foreignField: '_id', as: 'cb2' } },
-      { $unwind: '$cb1' },
-      { $unwind: '$cb2' },
-      {
-        $group: {
-          _id: null,
-            totalSavings: { $sum: '$cb1.savings' },
-            totalLoanCollection: { $sum: '$cb1.loanCollection' },
-            totalCharges: { $sum: '$cb1.chargesCollection' },
-            totalDisbursements: { $sum: '$cb2.disAmt' },
-            totalWithdrawals: { $sum: '$cb2.savWith' },
-            avgOnlineCIH: { $avg: '$onlineCIH' },
-            totalTSO: { $sum: '$tso' },
-            operationDays: { $sum: 1 }
-        }
-      }
-    ]);
+    const summaryOperations = await DailyOperations.find(query).populate(['cashbook1', 'cashbook2']);
+    const summary = summaryOperations.reduce((acc, op) => {
+      acc.totalSavings += op.cashbook1?.savings || 0;
+      acc.totalLoanCollection += op.cashbook1?.loanCollection || 0;
+      acc.totalCharges += op.cashbook1?.chargesCollection || 0;
+      acc.totalDisbursements += op.cashbook2?.disAmt || 0;
+      acc.totalWithdrawals += op.cashbook2?.savWith || 0;
+      acc.totalTSO += op.tso || 0;
+      acc.totalOnlineCIHSum += op.onlineCIH || 0;
+      acc.operationDays += 1;
+      return acc;
+    }, {
+      totalSavings: 0,
+      totalLoanCollection: 0,
+      totalCharges: 0,
+      totalDisbursements: 0,
+      totalWithdrawals: 0,
+      totalTSO: 0,
+      totalOnlineCIHSum: 0,
+      operationDays: 0
+    });
+    summary.avgOnlineCIH = summary.operationDays ? summary.totalOnlineCIHSum / summary.operationDays : 0;
+    delete summary.totalOnlineCIHSum;
 
     const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
     const trendDataRaw = await DailyOperations.find({
@@ -69,16 +79,7 @@ class DashboardService {
 
     return {
       todayOperations,
-      summary: summaryStats[0] || {
-        totalSavings: 0,
-        totalLoanCollection: 0,
-        totalCharges: 0,
-        totalDisbursements: 0,
-        totalWithdrawals: 0,
-        avgOnlineCIH: 0,
-        totalTSO: 0,
-        operationDays: 0
-      },
+      summary,
       trendData: trendDataRaw.map(op => ({
         date: op.date,
         savings: op.cashbook1?.savings || 0,
@@ -100,63 +101,122 @@ class DashboardService {
 
     let dateFilter = {};
     if (startDate && endDate) {
-      dateFilter = { date: { $gte: new Date(startDate), $lte: new Date(endDate) } };
+      const normalizedStart = new Date(startDate);
+      normalizedStart.setHours(0, 0, 0, 0);
+      const normalizedEnd = new Date(endDate);
+      normalizedEnd.setHours(23, 59, 59, 999);
+      dateFilter = { date: { $gte: normalizedStart, $lte: normalizedEnd } };
     } else {
       const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
       dateFilter = { date: { $gte: thirtyDaysAgo, $lte: today } };
     }
 
     let query = { ...dateFilter };
-    if (branchId) query.branch = branchId;
+    if (branchId) {
+      const branchObjectId = branchId instanceof mongoose.Types.ObjectId ? branchId : new mongoose.Types.ObjectId(branchId);
+      query.branch = branchObjectId;
+    }
 
     const branches = await Branch.find({ isActive: true }).select('name code').sort({ name: 1 });
 
-    const consolidatedSummary = await DailyOperations.aggregate([
-      { $match: query },
-      { $lookup: { from: 'cashbook1s', localField: 'cashbook1', foreignField: '_id', as: 'cb1' } },
-      { $lookup: { from: 'cashbook2s', localField: 'cashbook2', foreignField: '_id', as: 'cb2' } },
-      { $unwind: '$cb1' },
-      { $unwind: '$cb2' },
-      {
-        $group: {
-          _id: null,
-          totalSavings: { $sum: '$cb1.savings' },
-          totalLoanCollection: { $sum: '$cb1.loanCollection' },
-          totalCharges: { $sum: '$cb1.chargesCollection' },
-          totalDisbursements: { $sum: '$cb2.disAmt' },
-          totalWithdrawals: { $sum: '$cb2.savWith' },
-          totalOnlineCIH: { $sum: '$onlineCIH' },
-          totalTSO: { $sum: '$tso' },
-          activeBranches: { $addToSet: '$branch' },
-          totalOperations: { $sum: 1 }
-        }
-      }
-    ]);
+    const aggregatedOps = await DailyOperations.find(query)
+      .populate([
+        { path: 'branch', select: 'name code' },
+        { path: 'cashbook1' },
+        { path: 'cashbook2' }
+      ])
+      .lean();
 
-    const branchPerformance = await DailyOperations.aggregate([
-      { $match: query },
-      { $lookup: { from: 'branches', localField: 'branch', foreignField: '_id', as: 'branchInfo' } },
-      { $lookup: { from: 'cashbook1s', localField: 'cashbook1', foreignField: '_id', as: 'cb1' } },
-      { $lookup: { from: 'cashbook2s', localField: 'cashbook2', foreignField: '_id', as: 'cb2' } },
-      { $unwind: '$branchInfo' },
-      { $unwind: '$cb1' },
-      { $unwind: '$cb2' },
-      {
-        $group: {
-          _id: '$branch',
-          branchName: { $first: '$branchInfo.name' },
-          branchCode: { $first: '$branchInfo.code' },
-          totalSavings: { $sum: '$cb1.savings' },
-          totalLoanCollection: { $sum: '$cb1.loanCollection' },
-          totalDisbursements: { $sum: '$cb2.disAmt' },
-          avgOnlineCIH: { $avg: '$onlineCIH' },
-          totalTSO: { $sum: '$tso' },
-          operationDays: { $sum: 1 },
-          lastOperation: { $max: '$date' }
+    const summaryAccumulator = {
+      totalSavings: 0,
+      totalLoanCollection: 0,
+      totalCharges: 0,
+      totalDisbursements: 0,
+      totalWithdrawals: 0,
+      totalOnlineCIH: 0,
+      totalTSO: 0,
+      activeBranches: new Set(),
+      totalOperations: 0
+    };
+    const branchMap = new Map();
+
+    aggregatedOps.forEach(op => {
+      const cb1 = op.cashbook1 || {};
+      const cb2 = op.cashbook2 || {};
+      summaryAccumulator.totalSavings += cb1.savings || 0;
+      summaryAccumulator.totalLoanCollection += cb1.loanCollection || 0;
+      summaryAccumulator.totalCharges += cb1.chargesCollection || 0;
+      summaryAccumulator.totalDisbursements += cb2.disAmt || 0;
+      summaryAccumulator.totalWithdrawals += cb2.savWith || 0;
+      summaryAccumulator.totalOnlineCIH += op.onlineCIH || 0;
+      summaryAccumulator.totalTSO += op.tso || 0;
+      summaryAccumulator.totalOperations += 1;
+      if (op.branch?._id) summaryAccumulator.activeBranches.add(op.branch._id.toString());
+
+      const branchKey = op.branch?._id?.toString() || op.branch?.toString();
+      if (!branchKey) return;
+      if (!branchMap.has(branchKey)) {
+        branchMap.set(branchKey, {
+          _id: op.branch._id,
+          branchName: op.branch.name,
+          branchCode: op.branch.code,
+          totalSavings: 0,
+          totalLoanCollection: 0,
+          totalDisbursements: 0,
+          totalTSO: 0,
+          onlineCIHSum: 0,
+          operationDays: 0,
+          lastOperation: op.date
+        });
+      }
+      const branchStats = branchMap.get(branchKey);
+      branchStats.totalSavings += cb1.savings || 0;
+      branchStats.totalLoanCollection += cb1.loanCollection || 0;
+      branchStats.totalDisbursements += cb2.disAmt || 0;
+      branchStats.totalTSO += op.tso || 0;
+      branchStats.onlineCIHSum += op.onlineCIH || 0;
+      branchStats.operationDays += 1;
+      if (!branchStats.lastOperation || op.date > branchStats.lastOperation) branchStats.lastOperation = op.date;
+    });
+
+    const consolidatedSummary = summaryAccumulator.totalOperations
+      ? {
+          totalSavings: summaryAccumulator.totalSavings,
+          totalLoanCollection: summaryAccumulator.totalLoanCollection,
+          totalCharges: summaryAccumulator.totalCharges,
+          totalDisbursements: summaryAccumulator.totalDisbursements,
+          totalWithdrawals: summaryAccumulator.totalWithdrawals,
+          totalOnlineCIH: summaryAccumulator.totalOnlineCIH,
+          totalTSO: summaryAccumulator.totalTSO,
+          activeBranches: Array.from(summaryAccumulator.activeBranches),
+          totalOperations: summaryAccumulator.totalOperations
         }
-      },
-      { $sort: { totalSavings: -1 } }
-    ]);
+      : {
+          totalSavings: 0,
+          totalLoanCollection: 0,
+          totalCharges: 0,
+          totalDisbursements: 0,
+          totalWithdrawals: 0,
+          totalOnlineCIH: 0,
+          totalTSO: 0,
+          activeBranches: [],
+          totalOperations: 0
+        };
+
+    const branchPerformance = Array.from(branchMap.values())
+      .map(item => ({
+        _id: item._id,
+        branchName: item.branchName,
+        branchCode: item.branchCode,
+        totalSavings: item.totalSavings,
+        totalLoanCollection: item.totalLoanCollection,
+        totalDisbursements: item.totalDisbursements,
+        avgOnlineCIH: item.operationDays ? item.onlineCIHSum / item.operationDays : 0,
+        totalTSO: item.totalTSO,
+        operationDays: item.operationDays,
+        lastOperation: item.lastOperation
+      }))
+      .sort((a, b) => b.totalSavings - a.totalSavings);
 
     const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const endOfToday = new Date(startOfToday.getTime() + 24 * 60 * 60 * 1000);
@@ -168,38 +228,36 @@ class DashboardService {
     ]);
 
     const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-    const trendData = await DailyOperations.aggregate([
-      { $match: { date: { $gte: thirtyDaysAgo, $lte: today } } },
-      { $lookup: { from: 'cashbook1s', localField: 'cashbook1', foreignField: '_id', as: 'cb1' } },
-      { $lookup: { from: 'cashbook2s', localField: 'cashbook2', foreignField: '_id', as: 'cb2' } },
-      { $unwind: '$cb1' },
-      { $unwind: '$cb2' },
-      { $group: { _id: { year: { $year: '$date' }, month: { $month: '$date' }, day: { $dayOfMonth: '$date' } }, date: { $first: '$date' }, totalSavings: { $sum: '$cb1.savings' }, totalDisbursements: { $sum: '$cb2.disAmt' }, totalTSO: { $sum: '$tso' }, operatingBranches: { $sum: 1 } } },
-      { $sort: { date: 1 } }
-    ]);
+    const trendOps = await DailyOperations.find({ date: { $gte: thirtyDaysAgo, $lte: today } })
+      .populate([{ path: 'cashbook1' }, { path: 'cashbook2' }])
+      .lean();
+    const trendMap = new Map();
+    trendOps.forEach(op => {
+      const key = new Date(op.date).toISOString().split('T')[0];
+      if (!trendMap.has(key)) {
+        trendMap.set(key, {
+          date: op.date,
+          totalSavings: 0,
+          totalDisbursements: 0,
+          totalTSO: 0,
+          operatingBranches: 0
+        });
+      }
+      const entry = trendMap.get(key);
+      entry.totalSavings += op.cashbook1?.savings || 0;
+      entry.totalDisbursements += op.cashbook2?.disAmt || 0;
+      entry.totalTSO += op.tso || 0;
+      entry.operatingBranches += 1;
+      if (op.date > entry.date) entry.date = op.date;
+    });
+    const trendData = Array.from(trendMap.values()).sort((a, b) => a.date - b.date);
 
     return {
       branches,
-      consolidatedSummary: consolidatedSummary[0] || {
-        totalSavings: 0,
-        totalLoanCollection: 0,
-        totalCharges: 0,
-        totalDisbursements: 0,
-        totalWithdrawals: 0,
-        totalOnlineCIH: 0,
-        totalTSO: 0,
-        activeBranches: [],
-        totalOperations: 0
-      },
+      consolidatedSummary,
       branchPerformance,
       todayStatus,
-      trendData: trendData.map(item => ({
-        date: item.date,
-        totalSavings: item.totalSavings,
-        totalDisbursements: item.totalDisbursements,
-        totalTSO: item.totalTSO,
-        operatingBranches: item.operatingBranches
-      }))
+      trendData
     };
   }
 }

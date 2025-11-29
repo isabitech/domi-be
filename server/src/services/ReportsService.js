@@ -139,70 +139,149 @@ class ReportsService {
     if (req.user.role !== 'HO' && req.user.role !== 'admin') {
       throw new ForbiddenError('Access denied. Head Office users only.');
     }
-    const { dateFilter, periodStart, periodEnd } = ReportsService.buildConsolidatedDateFilter(req);
-    const consolidatedData = await ReportsService.aggregateConsolidatedData(dateFilter);
-    const grandTotalsRaw = await ReportsService.aggregateGrandTotals(dateFilter);
+    const { dateFilter, periodStart, periodEnd, scope } = ReportsService.buildConsolidatedDateFilter(req);
+    const operations = await ReportsService.fetchConsolidatedOperations(dateFilter);
+    const { consolidatedData, grandTotals } = ReportsService.buildConsolidatedSummaries(operations);
     const currentRegisters = await ReportsService.fetchCurrentRegisters();
-    const grandTotals = ReportsService.normalizeGrandTotals(grandTotalsRaw);
-    return ReportsService.assembleConsolidatedReport(req, periodStart, periodEnd, consolidatedData, grandTotals, currentRegisters);
+    return ReportsService.assembleConsolidatedReport(req, periodStart, periodEnd, consolidatedData, grandTotals, currentRegisters, scope);
   }
 
   // Helper: Build consolidated date filter
   static buildConsolidatedDateFilter(req) {
-    const { startDate, endDate } = req.query;
+    const { startDate, endDate, scope } = req.query;
+    if ((scope && scope.toLowerCase() === 'all') || req.query.allDates === 'true') {
+      return { dateFilter: {}, periodStart: null, periodEnd: null, scope: 'all' };
+    }
     const today = new Date();
     if (startDate && endDate) {
+      const normalizedStart = new Date(startDate);
+      normalizedStart.setHours(0, 0, 0, 0);
+      const normalizedEnd = new Date(endDate);
+      normalizedEnd.setHours(23, 59, 59, 999);
       return {
-        dateFilter: { date: { $gte: new Date(startDate), $lte: new Date(endDate) } },
-        periodStart: new Date(startDate),
-        periodEnd: new Date(endDate)
+        dateFilter: { date: { $gte: normalizedStart, $lte: normalizedEnd } },
+        periodStart: normalizedStart,
+        periodEnd: normalizedEnd,
+        scope: 'range'
       };
     }
     const periodStart = new Date(today.getFullYear(), today.getMonth(), 1);
     const periodEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999);
-    return { dateFilter: { date: { $gte: periodStart, $lte: periodEnd } }, periodStart, periodEnd };
+    return { dateFilter: { date: { $gte: periodStart, $lte: periodEnd } }, periodStart, periodEnd, scope: 'currentMonth' };
   }
 
-  // Helper: Aggregate consolidated data per branch
-  static async aggregateConsolidatedData(dateFilter) {
-    return DailyOperations.aggregate([
-      { $match: dateFilter },
-      { $lookup: { from: 'branches', localField: 'branch', foreignField: '_id', as: 'branchInfo' } },
-      { $lookup: { from: 'cashbook1s', localField: 'cashbook1', foreignField: '_id', as: 'cb1' } },
-      { $lookup: { from: 'cashbook2s', localField: 'cashbook2', foreignField: '_id', as: 'cb2' } },
-      { $unwind: '$branchInfo' }, { $unwind: '$cb1' }, { $unwind: '$cb2' },
-      { $group: { _id: '$branch', branchName: { $first: '$branchInfo.name' }, branchCode: { $first: '$branchInfo.code' }, totalSavings: { $sum: '$cb1.savings' }, totalLoanCollection: { $sum: '$cb1.loanCollection' }, totalCharges: { $sum: '$cb1.chargesCollection' }, totalDisbursements: { $sum: '$cb2.disAmt' }, totalWithdrawals: { $sum: '$cb2.savWith' }, totalTSO: { $sum: '$tso' }, avgOnlineCIH: { $avg: '$onlineCIH' }, operatingDays: { $sum: 1 }, lastOperationDate: { $max: '$date' } } },
-      { $sort: { totalSavings: -1 } }
-    ]);
+  // Helper: Fetch consolidated operations with relations
+  static async fetchConsolidatedOperations(dateFilter) {
+    const match = dateFilter?.date ? dateFilter : {};
+    return DailyOperations.find(match)
+      .populate([
+        { path: 'branch', select: 'name code' },
+        { path: 'cashbook1' },
+        { path: 'cashbook2' }
+      ])
+      .lean();
   }
 
-  // Helper: Aggregate grand totals across all branches
-  static async aggregateGrandTotals(dateFilter) {
-    return DailyOperations.aggregate([
-      { $match: dateFilter },
-      { $lookup: { from: 'cashbook1s', localField: 'cashbook1', foreignField: '_id', as: 'cb1' } },
-      { $lookup: { from: 'cashbook2s', localField: 'cashbook2', foreignField: '_id', as: 'cb2' } },
-      { $unwind: '$cb1' }, { $unwind: '$cb2' },
-      { $group: { _id: null, totalSavings: { $sum: '$cb1.savings' }, totalLoanCollection: { $sum: '$cb1.loanCollection' }, totalCharges: { $sum: '$cb1.chargesCollection' }, totalDisbursements: { $sum: '$cb2.disAmt' }, totalWithdrawals: { $sum: '$cb2.savWith' }, totalTSO: { $sum: '$tso' }, totalOnlineCIH: { $sum: '$onlineCIH' }, activeBranches: { $addToSet: '$branch' }, totalOperations: { $sum: 1 } } }
-    ]);
-  }
+  // Helper: Build consolidated summaries from populated operations
+  static buildConsolidatedSummaries(operations) {
+    const branchMap = new Map();
+    const totals = {
+      totalSavings: 0,
+      totalLoanCollection: 0,
+      totalCharges: 0,
+      totalDisbursements: 0,
+      totalWithdrawals: 0,
+      totalTSO: 0,
+      totalOnlineCIH: 0,
+      activeBranches: new Set(),
+      totalOperations: 0
+    };
 
-  // Helper: Normalize grand totals output
-  static normalizeGrandTotals(raw) {
-    if (!raw || !raw.length) {
-      return { totalSavings: 0, totalLoanCollection: 0, totalCharges: 0, totalDisbursements: 0, totalWithdrawals: 0, totalTSO: 0, totalOnlineCIH: 0, activeBranches: [], totalOperations: 0 };
-    }
-    const g = raw[0];
+    operations.forEach(op => {
+      const branchId = op.branch?._id?.toString() || op.branch?.toString();
+      const branchName = op.branch?.name || 'Unknown Branch';
+      const branchCode = op.branch?.code || 'N/A';
+      const cb1 = op.cashbook1 || {};
+      const cb2 = op.cashbook2 || {};
+      const savings = cb1.savings || 0;
+      const loanCollection = cb1.loanCollection || 0;
+      const charges = cb1.chargesCollection || 0;
+      const disbursements = cb2.disAmt || 0;
+      const withdrawals = cb2.savWith || 0;
+      const tso = op.tso || 0;
+      const onlineCIH = op.onlineCIH || 0;
+
+      totals.totalSavings += savings;
+      totals.totalLoanCollection += loanCollection;
+      totals.totalCharges += charges;
+      totals.totalDisbursements += disbursements;
+      totals.totalWithdrawals += withdrawals;
+      totals.totalTSO += tso;
+      totals.totalOnlineCIH += onlineCIH;
+      totals.totalOperations += 1;
+      if (branchId) totals.activeBranches.add(branchId);
+
+      if (!branchId) return;
+      if (!branchMap.has(branchId)) {
+        branchMap.set(branchId, {
+          _id: op.branch?._id || branchId,
+          branchName,
+          branchCode,
+          totalSavings: 0,
+          totalLoanCollection: 0,
+          totalCharges: 0,
+          totalDisbursements: 0,
+          totalWithdrawals: 0,
+          totalTSO: 0,
+          onlineCIHSum: 0,
+          operatingDays: 0,
+          lastOperationDate: null
+        });
+      }
+      const branchStats = branchMap.get(branchId);
+      branchStats.totalSavings += savings;
+      branchStats.totalLoanCollection += loanCollection;
+      branchStats.totalCharges += charges;
+      branchStats.totalDisbursements += disbursements;
+      branchStats.totalWithdrawals += withdrawals;
+      branchStats.totalTSO += tso;
+      branchStats.onlineCIHSum += onlineCIH;
+      branchStats.operatingDays += 1;
+      if (!branchStats.lastOperationDate || op.date > branchStats.lastOperationDate) {
+        branchStats.lastOperationDate = op.date;
+      }
+    });
+
+    const consolidatedData = Array.from(branchMap.values())
+      .map(item => ({
+        _id: item._id,
+        branchName: item.branchName,
+        branchCode: item.branchCode,
+        totalSavings: item.totalSavings,
+        totalLoanCollection: item.totalLoanCollection,
+        totalCharges: item.totalCharges,
+        totalDisbursements: item.totalDisbursements,
+        totalWithdrawals: item.totalWithdrawals,
+        totalTSO: item.totalTSO,
+        avgOnlineCIH: item.operatingDays ? item.onlineCIHSum / item.operatingDays : 0,
+        operatingDays: item.operatingDays,
+        lastOperationDate: item.lastOperationDate
+      }))
+      .sort((a, b) => b.totalSavings - a.totalSavings);
+
     return {
-      totalSavings: g.totalSavings || 0,
-      totalLoanCollection: g.totalLoanCollection || 0,
-      totalCharges: g.totalCharges || 0,
-      totalDisbursements: g.totalDisbursements || 0,
-      totalWithdrawals: g.totalWithdrawals || 0,
-      totalTSO: g.totalTSO || 0,
-      totalOnlineCIH: g.totalOnlineCIH || 0,
-      activeBranches: g.activeBranches || [],
-      totalOperations: g.totalOperations || 0
+      consolidatedData,
+      grandTotals: {
+        totalSavings: totals.totalSavings,
+        totalLoanCollection: totals.totalLoanCollection,
+        totalCharges: totals.totalCharges,
+        totalDisbursements: totals.totalDisbursements,
+        totalWithdrawals: totals.totalWithdrawals,
+        totalTSO: totals.totalTSO,
+        totalOnlineCIH: totals.totalOnlineCIH,
+        activeBranches: Array.from(totals.activeBranches),
+        totalOperations: totals.totalOperations
+      }
     };
   }
 
@@ -216,9 +295,9 @@ class ReportsService {
   }
 
   // Helper: Assemble consolidated response
-  static assembleConsolidatedReport(req, periodStart, periodEnd, consolidatedData, grandTotals, currentRegisters) {
+  static assembleConsolidatedReport(req, periodStart, periodEnd, consolidatedData, grandTotals, currentRegisters, scope = 'range') {
     return {
-      period: { startDate: periodStart, endDate: periodEnd },
+      period: { startDate: periodStart, endDate: periodEnd, scope },
       generatedAt: new Date(),
       generatedBy: req.user.name,
       consolidatedData,
