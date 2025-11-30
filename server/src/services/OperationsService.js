@@ -198,14 +198,17 @@ class OperationsService {
     const { branchId, date } = req.body;
     const { target, start, end } = this.getDayBounds(date);
     await this.updateBranchPreviousValues(req.body, branchId);
-    const dailyOps = await DailyOperations.findOne({ branch: branchId, date: { $gte: start, $lt: end } });
-    if (!dailyOps) throw new NotFoundError('Daily operations not found for this date');
+    let dailyOps = await DailyOperations.findOne({ branch: branchId, date: { $gte: start, $lt: end } });
+    if (!dailyOps) {
+      dailyOps = new DailyOperations({ branch: branchId, date: target });
+      await dailyOps.save();
+    }
     await this.updateCashbookHOFields(dailyOps.cashbook1, req.body);
     await this.updateBankStatementTBO(dailyOps.bankStatement2, req.body);
-    const cb1 = await Cashbook1.findById(dailyOps.cashbook1);
-    const cb2 = await Cashbook2.findById(dailyOps.cashbook2);
-    const bs1 = await BankStatement1.findById(dailyOps.bankStatement1);
-    const bs2 = await BankStatement2.findById(dailyOps.bankStatement2);
+    const cb1 = dailyOps.cashbook1 ? await Cashbook1.findById(dailyOps.cashbook1) : null;
+    const cb2 = dailyOps.cashbook2 ? await Cashbook2.findById(dailyOps.cashbook2) : null;
+    const bs1 = dailyOps.bankStatement1 ? await BankStatement1.findById(dailyOps.bankStatement1) : null;
+    const bs2 = dailyOps.bankStatement2 ? await BankStatement2.findById(dailyOps.bankStatement2) : null;
     if (cb1 && cb2 && bs1 && bs2) { await this.applyDerivedTotals(dailyOps, cb1, cb2, bs1, bs2); await dailyOps.save(); }
     return { message: 'HO fields updated successfully' };
   }
