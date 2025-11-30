@@ -200,7 +200,7 @@ class OperationsService {
     await this.updateBranchPreviousValues(req.body, branchId);
     let dailyOps = await DailyOperations.findOne({ branch: branchId, date: { $gte: start, $lt: end } });
     if (!dailyOps) {
-      dailyOps = new DailyOperations({ branch: branchId, date: target });
+      dailyOps = new DailyOperations({ branch: branchId, user: req.user.id, date: target });
       await dailyOps.save();
     }
     await this.updateCashbookHOFields(dailyOps.cashbook1, req.body);
