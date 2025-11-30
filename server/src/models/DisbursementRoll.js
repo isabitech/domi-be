@@ -36,13 +36,18 @@ const disbursementRollSchema = new mongoose.Schema({
   disbursementRoll: {
     type: Number,
     default: 0 // Previous Disbursement + Daily Disbursement
+  },
+  disNo: {
+    type: Number,
+    required: true,
+    default: 0
   }
 }, {
   timestamps: true
 });
 
 // Calculate disbursement roll before saving
-disbursementRollSchema.pre('save', function(next) {
+disbursementRollSchema.pre('save', function (next) {
   this.disbursementRoll = this.previousDisbursement + this.dailyDisbursement;
   next();
 });

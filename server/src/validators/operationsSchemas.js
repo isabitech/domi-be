@@ -83,7 +83,8 @@ export const operationsSchemas = {
   updateHOFields: Joi.object({
     body: Joi.object({
       branchId: id.required(),
-      date: Joi.date().iso().optional(),
+      // Require explicit date so HO cannot accidentally update "today" by omission
+      date: Joi.date().iso().required(),
       frmHO: numeric,
       frmBR: numeric,
       tbo: numeric,

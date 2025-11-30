@@ -110,7 +110,9 @@ class OperationsService {
     if (!roll) {
       roll = new DisbursementRoll({ branch: branchId, month, year, previousDisbursement: branchMeta.previousDisbursement, dailyDisbursement: cb2.disAmt });
     } else {
-      roll.dailyDisbursement += cb2.disAmt;
+      // Treat disAmt as the current month's total from Cashbook2,
+      // so edits to the same day don't double-count.
+      roll.dailyDisbursement = cb2.disAmt;
     }
     await roll.save();
     return roll;
@@ -199,7 +201,7 @@ class OperationsService {
     const { target, start, end } = this.getDayBounds(date);
     await this.updateBranchPreviousValues(req.body, branchId);
 
-    // Load or create a full dailyOps graph (cashbooks, bank statements, registers)
+    // Load current dailyOps (HO never creates duplicates; index enforces one per branch/day)
     let dailyOps = await DailyOperations.findOne({ branch: branchId, date: { $gte: start, $lt: end } });
     const branchMeta = await Branch.findById(branchId);
 
@@ -224,16 +226,13 @@ class OperationsService {
     const cb1 = await this.buildCashbook1(dailyOps?.cashbook1, branchId, req.user.id, target, seedPayload);
     const cb2 = await this.buildCashbook2(dailyOps?.cashbook2, branchId, req.user.id, target, seedPayload);
     const prediction = await this.buildPrediction(dailyOps?.prediction, branchId, req.user.id, target, seedPayload);
-    const bs1 = await this.buildBankStatement1(dailyOps?.bankStatement1, branchId, target, cb1, cb2, undefined);
+    const bs1 = await this.buildBankStatement1(dailyOps?.bankStatement1, branchId, target, cb1, cb2, dailyOps?.bankStatement1 ? undefined : 0);
     const bs2 = await this.buildBankStatement2(dailyOps?.bankStatement2, branchId, req.user.id, target, cb1, seedPayload);
     const loanRegister = await this.buildLoanRegister(dailyOps?.loanRegister, branchId, target, branchMeta, cb2, cb1);
     const savingsRegister = await this.buildSavingsRegister(dailyOps?.savingsRegister, branchId, target, branchMeta, cb1, cb2);
 
     if (!dailyOps) {
-      dailyOps = new DailyOperations();
-      dailyOps.branch = branchId;
-      dailyOps.user = req.user.id;
-      dailyOps.date = target;
+      dailyOps = new DailyOperations({ branch: branchId, user: req.user.id, date: target });
     }
 
     dailyOps.cashbook1 = cb1._id;
