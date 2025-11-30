@@ -198,18 +198,65 @@ class OperationsService {
     const { branchId, date } = req.body;
     const { target, start, end } = this.getDayBounds(date);
     await this.updateBranchPreviousValues(req.body, branchId);
+
+    // Load or create a full dailyOps graph (cashbooks, bank statements, registers)
     let dailyOps = await DailyOperations.findOne({ branch: branchId, date: { $gte: start, $lt: end } });
+    const branchMeta = await Branch.findById(branchId);
+
+    // Seed zero/default payload so HO can create missing records
+    const seedPayload = {
+      pcih: 0,
+      savings: 0,
+      loanCollection: 0,
+      chargesCollection: 0,
+      disNo: 0,
+      disAmt: 0,
+      disWithInt: 0,
+      savWith: 0,
+      domiBank: 0,
+      posT: 0,
+      predictionNo: 0,
+      predictionAmount: 0,
+      exAmt: 0,
+      exPurpose: ''
+    };
+
+    const cb1 = await this.buildCashbook1(dailyOps?.cashbook1, branchId, req.user.id, target, seedPayload);
+    const cb2 = await this.buildCashbook2(dailyOps?.cashbook2, branchId, req.user.id, target, seedPayload);
+    const prediction = await this.buildPrediction(dailyOps?.prediction, branchId, req.user.id, target, seedPayload);
+    const bs1 = await this.buildBankStatement1(dailyOps?.bankStatement1, branchId, target, cb1, cb2, undefined);
+    const bs2 = await this.buildBankStatement2(dailyOps?.bankStatement2, branchId, req.user.id, target, cb1, seedPayload);
+    const loanRegister = await this.buildLoanRegister(dailyOps?.loanRegister, branchId, target, branchMeta, cb2, cb1);
+    const savingsRegister = await this.buildSavingsRegister(dailyOps?.savingsRegister, branchId, target, branchMeta, cb1, cb2);
+
     if (!dailyOps) {
-      dailyOps = new DailyOperations({ branch: branchId, user: req.user.id, date: target });
-      await dailyOps.save();
+      dailyOps = new DailyOperations();
+      dailyOps.branch = branchId;
+      dailyOps.user = req.user.id;
+      dailyOps.date = target;
     }
+
+    dailyOps.cashbook1 = cb1._id;
+    dailyOps.cashbook2 = cb2._id;
+    dailyOps.prediction = prediction._id;
+    dailyOps.bankStatement1 = bs1._id;
+    dailyOps.bankStatement2 = bs2._id;
+    dailyOps.loanRegister = loanRegister._id;
+    dailyOps.savingsRegister = savingsRegister._id;
+
+    // Now apply HO-only adjustments on top (frmHO/frmBR, TBO, previous values already handled)
     await this.updateCashbookHOFields(dailyOps.cashbook1, req.body);
     await this.updateBankStatementTBO(dailyOps.bankStatement2, req.body);
-    const cb1 = dailyOps.cashbook1 ? await Cashbook1.findById(dailyOps.cashbook1) : null;
-    const cb2 = dailyOps.cashbook2 ? await Cashbook2.findById(dailyOps.cashbook2) : null;
-    const bs1 = dailyOps.bankStatement1 ? await BankStatement1.findById(dailyOps.bankStatement1) : null;
-    const bs2 = dailyOps.bankStatement2 ? await BankStatement2.findById(dailyOps.bankStatement2) : null;
-    if (cb1 && cb2 && bs1 && bs2) { await this.applyDerivedTotals(dailyOps, cb1, cb2, bs1, bs2); await dailyOps.save(); }
+
+    // Re-load updated docs for derived totals
+    const cb1After = await Cashbook1.findById(dailyOps.cashbook1);
+    const cb2After = await Cashbook2.findById(dailyOps.cashbook2);
+    const bs1After = await BankStatement1.findById(dailyOps.bankStatement1);
+    const bs2After = await BankStatement2.findById(dailyOps.bankStatement2);
+
+    await this.applyDerivedTotals(dailyOps, cb1After, cb2After, bs1After, bs2After);
+    await dailyOps.save();
+
     return { message: 'HO fields updated successfully' };
   }
 
