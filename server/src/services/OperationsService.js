@@ -330,9 +330,29 @@ class OperationsService {
       .populate('savingsRegister')
       .sort({ date: -1 });
 
+    const totals = operations.reduce(
+      (acc, op) => {
+        const cb1 = op.cashbook1 || {};
+        const cb2 = op.cashbook2 || {};
+
+        const savings = cb1.savings || 0;
+        const loanCollection = cb1.loanCollection || 0;
+        const chargesCollection = cb1.chargesCollection || 0;
+        const disNo = cb2.disNo || 0;
+        const disAmt = cb2.disAmt || 0;
+
+        acc.totalCollections += savings + loanCollection + chargesCollection;
+        acc.totalDisbursementNumber += disNo;
+        acc.totalDisbursementAmount += disAmt;
+        return acc;
+      },
+      { totalCollections: 0, totalDisbursementNumber: 0, totalDisbursementAmount: 0 }
+    );
+
     return {
       operations,
-      total: operations.length
+      total: operations.length,
+      totals
     };
   }
 

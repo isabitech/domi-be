@@ -34,53 +34,79 @@ class ReportsService {
 
   // Helper: Map daily report data
   static mapDailyReport(operations) {
-    return operations.map(op => ({
-      branch: { name: op.branch.name, code: op.branch.code },
-      user: { name: op.user.name, email: op.user.email },
-      cashbook1: {
-        pcih: op.cashbook1?.pcih || 0,
-        savings: op.cashbook1?.savings || 0,
-        loanCollection: op.cashbook1?.loanCollection || 0,
-        chargesCollection: op.cashbook1?.chargesCollection || 0,
-        total: op.cashbook1?.total || 0,
-        frmHO: op.cashbook1?.frmHO || 0,
-        frmBR: op.cashbook1?.frmBR || 0,
-        cbTotal1: op.cashbook1?.cbTotal1 || 0
-      },
-      cashbook2: {
-        disNo: op.cashbook2?.disNo || 0,
-        disAmt: op.cashbook2?.disAmt || 0,
-        disWithInt: op.cashbook2?.disWithInt || 0,
-        savWith: op.cashbook2?.savWith || 0,
-        domiBank: op.cashbook2?.domiBank || 0,
-        posT: op.cashbook2?.posT || 0,
-        cbTotal2: op.cashbook2?.cbTotal2 || 0
-      },
-      prediction: {
-        predictionNo: op.prediction?.predictionNo || 0,
-        predictionAmount: op.prediction?.predictionAmount || 0
-      },
-      bankStatements: {
-        bs1Total: op.bankStatement1?.bs1Total || 0,
-        bs2Total: op.bankStatement2?.bs2Total || 0
-      },
-      registers: {
-        currentLoanBalance: op.loanRegister?.currentLoanBalance || 0,
-        currentSavings: op.savingsRegister?.currentSavings || 0
-      },
-      calculated: { onlineCIH: op.onlineCIH, tso: op.tso },
-      status: { isCompleted: op.isCompleted, submittedAt: op.submittedAt }
-    }));
+    return operations.map(op => {
+      const savings = op.cashbook1?.savings || 0;
+      const loanCollection = op.cashbook1?.loanCollection || 0;
+      const chargesCollection = op.cashbook1?.chargesCollection || 0;
+      const disNo = op.cashbook2?.disNo || 0;
+      const disAmt = op.cashbook2?.disAmt || 0;
+
+      return {
+        branch: { name: op.branch.name, code: op.branch.code },
+        user: { name: op.user.name, email: op.user.email },
+        cashbook1: {
+          pcih: op.cashbook1?.pcih || 0,
+          savings,
+          loanCollection,
+          chargesCollection,
+          total: op.cashbook1?.total || 0,
+          frmHO: op.cashbook1?.frmHO || 0,
+          frmBR: op.cashbook1?.frmBR || 0,
+          cbTotal1: op.cashbook1?.cbTotal1 || 0
+        },
+        cashbook2: {
+          disNo,
+          disAmt,
+          disWithInt: op.cashbook2?.disWithInt || 0,
+          savWith: op.cashbook2?.savWith || 0,
+          domiBank: op.cashbook2?.domiBank || 0,
+          posT: op.cashbook2?.posT || 0,
+          cbTotal2: op.cashbook2?.cbTotal2 || 0
+        },
+        prediction: {
+          predictionNo: op.prediction?.predictionNo || 0,
+          predictionAmount: op.prediction?.predictionAmount || 0
+        },
+        bankStatements: {
+          bs1Total: op.bankStatement1?.bs1Total || 0,
+          bs2Total: op.bankStatement2?.bs2Total || 0
+        },
+        registers: {
+          currentLoanBalance: op.loanRegister?.currentLoanBalance || 0,
+          currentSavings: op.savingsRegister?.currentSavings || 0
+        },
+        calculated: { onlineCIH: op.onlineCIH, tso: op.tso },
+        status: { isCompleted: op.isCompleted, submittedAt: op.submittedAt },
+        totals: {
+          collections: savings + loanCollection + chargesCollection,
+          disbursementNumber: disNo,
+          disbursementAmount: disAmt
+        }
+      };
+    });
   }
 
   static async daily(req) {
     const { query, targetDate } = ReportsService.buildDailyQuery(req);
     const operations = await ReportsService.populateDailyOperations(query);
+    const mapped = ReportsService.mapDailyReport(operations);
+
+    const grandTotals = mapped.reduce(
+      (acc, item) => {
+        acc.totalCollections += item.totals.collections || 0;
+        acc.totalDisbursementNumber += item.totals.disbursementNumber || 0;
+        acc.totalDisbursementAmount += item.totals.disbursementAmount || 0;
+        return acc;
+      },
+      { totalCollections: 0, totalDisbursementNumber: 0, totalDisbursementAmount: 0 }
+    );
+
     return {
       reportDate: targetDate,
       generatedAt: new Date(),
       generatedBy: req.user.name,
-      operations: ReportsService.mapDailyReport(operations)
+      operations: mapped,
+      totals: grandTotals
     };
   }
 
