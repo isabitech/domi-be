@@ -111,7 +111,15 @@ class OperationsService {
     const month = date.getMonth() + 1; const year = date.getFullYear();
     let roll = await DisbursementRoll.findOne({ branch: branchId, month, year });
     if (!roll) {
-      roll = new DisbursementRoll({ branch: branchId, month, year, previousDisbursement: branchMeta.previousDisbursement, dailyDisbursement: cb2.disAmt, disNo: cb2.disNo });
+      roll = new DisbursementRoll({
+        branch: branchId,
+        month,
+        year,
+        previousDisbursement: branchMeta.previousDisbursement,
+        previousDisbursementRollNo: branchMeta.previousDisbursementRollNo,
+        dailyDisbursement: cb2.disAmt,
+        disNo: cb2.disNo
+      });
     } else {
       // Treat disAmt as the current month's total from Cashbook2,
       // so edits to the same day don't double-count.

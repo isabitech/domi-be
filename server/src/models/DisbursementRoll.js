@@ -29,6 +29,10 @@ const disbursementRollSchema = new mongoose.Schema({
     type: Number,
     default: 0 // HO input
   },
+  previousDisbursementRollNo: {
+    type: Number,
+    default: 0
+  },
   dailyDisbursement: {
     type: Number,
     default: 0 // Sum of DIS AMT from Cashbook 2 for the month
