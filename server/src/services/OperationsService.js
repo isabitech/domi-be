@@ -349,8 +349,16 @@ class OperationsService {
       { totalCollections: 0, totalDisbursementNumber: 0, totalDisbursementAmount: 0 }
     );
 
+    const operationsWithPredictions = operations.map(op => ({
+      ...op.toObject(),
+      predictions: {
+        predictionNo: op.prediction?.predictionNo || 0,
+        predictionAmount: op.prediction?.predictionAmount || 0
+      }
+    }));
+
     return {
-      operations,
+      operations: operationsWithPredictions,
       total: operations.length,
       totals
     };
