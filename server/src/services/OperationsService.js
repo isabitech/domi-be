@@ -208,7 +208,7 @@ class OperationsService {
 
     // Seed zero/default payload so HO can create missing records
     const seedPayload = {
-      pcih: 0,
+      pcih: req.body.pcih,
       savings: 0,
       loanCollection: 0,
       chargesCollection: 0,
