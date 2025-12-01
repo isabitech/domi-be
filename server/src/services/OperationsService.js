@@ -264,11 +264,12 @@ class OperationsService {
   }
 
   static async updateBranchPreviousValues(body, branchId) {
-    const { previousLoanTotal, previousSavingsTotal, previousDisbursement, loanMultiplier } = body;
+    const { previousLoanTotal, previousSavingsTotal, previousDisbursement, previousDisbursementRollNo, loanMultiplier } = body;
     const updateData = {};
     if (previousLoanTotal !== undefined) updateData.previousLoanTotal = previousLoanTotal;
     if (previousSavingsTotal !== undefined) updateData.previousSavingsTotal = previousSavingsTotal;
     if (previousDisbursement !== undefined) updateData.previousDisbursement = previousDisbursement;
+    if (previousDisbursementRollNo !== undefined) updateData.previousDisbursementRollNo = previousDisbursementRollNo;
     if (loanMultiplier !== undefined) updateData.loanMultiplier = loanMultiplier;
     if (Object.keys(updateData).length) await Branch.findByIdAndUpdate(branchId, updateData);
   }

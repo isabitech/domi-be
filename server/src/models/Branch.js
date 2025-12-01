@@ -66,6 +66,10 @@ const branchSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  previousDisbursementRollNo: {
+    type: Number,
+    default: 0
+  },
   loanMultiplier: {
     type: Number,
     default: 1 // HO configurable factor for loan register computation
