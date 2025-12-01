@@ -135,6 +135,8 @@ class DashboardService {
       totalWithdrawals: 0,
       totalOnlineCIH: 0,
       totalTSO: 0,
+      totalFrmHO: 0,
+      totalDisbursementRollNo: 0,
       activeBranches: new Set(),
       totalOperations: 0
     };
@@ -146,6 +148,7 @@ class DashboardService {
       summaryAccumulator.totalSavings += cb1.savings || 0;
       summaryAccumulator.totalLoanCollection += cb1.loanCollection || 0;
       summaryAccumulator.totalCharges += cb1.chargesCollection || 0;
+      summaryAccumulator.totalFrmHO += cb1.frmHO || 0;
       summaryAccumulator.totalDisbursements += cb2.disAmt || 0;
       summaryAccumulator.totalWithdrawals += cb2.savWith || 0;
       summaryAccumulator.totalOnlineCIH += op.onlineCIH || 0;
@@ -179,6 +182,15 @@ class DashboardService {
       if (!branchStats.lastOperation || op.date > branchStats.lastOperation) branchStats.lastOperation = op.date;
     });
 
+    // Aggregate disbursement roll numbers for the same branch scope and period
+    const disRollQuery = {};
+    if (branchId) {
+      const branchObjectId = branchId instanceof mongoose.Types.ObjectId ? branchId : new mongoose.Types.ObjectId(branchId);
+      disRollQuery.branch = branchObjectId;
+    }
+    const disbursementRolls = await DisbursementRoll.find(disRollQuery).lean();
+    summaryAccumulator.totalDisbursementRollNo = disbursementRolls.reduce((sum, roll) => sum + (roll.disNo || 0), 0);
+
     const consolidatedSummary = summaryAccumulator.totalOperations
       ? {
           totalSavings: summaryAccumulator.totalSavings,
@@ -188,6 +200,12 @@ class DashboardService {
           totalWithdrawals: summaryAccumulator.totalWithdrawals,
           totalOnlineCIH: summaryAccumulator.totalOnlineCIH,
           totalTSO: summaryAccumulator.totalTSO,
+          totalFrmHO: summaryAccumulator.totalFrmHO,
+          totalDisbursementRollNo: summaryAccumulator.totalDisbursementRollNo,
+          totalCollections:
+            summaryAccumulator.totalLoanCollection +
+            summaryAccumulator.totalSavings +
+            summaryAccumulator.totalCharges,
           activeBranches: Array.from(summaryAccumulator.activeBranches),
           totalOperations: summaryAccumulator.totalOperations
         }
@@ -199,6 +217,9 @@ class DashboardService {
           totalWithdrawals: 0,
           totalOnlineCIH: 0,
           totalTSO: 0,
+          totalFrmHO: 0,
+          totalDisbursementRollNo: 0,
+          totalCollections: 0,
           activeBranches: [],
           totalOperations: 0
         };
