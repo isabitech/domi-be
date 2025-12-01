@@ -349,16 +349,37 @@ class OperationsService {
       { totalCollections: 0, totalDisbursementNumber: 0, totalDisbursementAmount: 0 }
     );
 
-    const operationsWithPredictions = operations.map(op => ({
-      ...op.toObject(),
-      predictions: {
-        predictionNo: op.prediction?.predictionNo || 0,
-        predictionAmount: op.prediction?.predictionAmount || 0
-      }
-    }));
+    // Attach predictions and disbursement roll snapshot per operation
+    const operationsWithExtras = await Promise.all(
+      operations.map(async (op) => {
+        const opObj = op.toObject();
+
+        const predictions = {
+          predictionNo: op.prediction?.predictionNo || 0,
+          predictionAmount: op.prediction?.predictionAmount || 0
+        };
+
+        let disbursementRoll = null;
+        if (op.branch && op.date) {
+          const month = op.date.getMonth() + 1;
+          const year = op.date.getFullYear();
+          disbursementRoll = await DisbursementRoll.findOne({
+            branch: op.branch._id,
+            month,
+            year
+          }).lean();
+        }
+
+        return {
+          ...opObj,
+          predictions,
+          disbursementRoll
+        };
+      })
+    );
 
     return {
-      operations: operationsWithPredictions,
+      operations: operationsWithExtras,
       total: operations.length,
       totals
     };
