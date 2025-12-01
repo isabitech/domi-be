@@ -31,7 +31,10 @@ class OperationsService {
   static async buildCashbook1(existingId, branchId, userId, date, data) {
     const src = existingId ? await Cashbook1.findById(existingId) : new Cashbook1();
     src.branch = branchId; src.user = userId; src.date = date;
-    src.pcih = data.pcih !== undefined ? data.pcih : (src.pcih || 0);
+    // pcih is controlled by HO; once set, branch updates must not override it.
+    if (src.pcih === undefined || src.pcih === null) {
+      src.pcih = data.pcih !== undefined ? data.pcih : 0;
+    }
     src.savings = data.savings !== undefined ? data.savings : (src.savings || 0);
     src.loanCollection = data.loanCollection !== undefined ? data.loanCollection : (src.loanCollection || 0);
     src.chargesCollection = data.chargesCollection !== undefined ? data.chargesCollection : (src.chargesCollection || 0);
@@ -148,7 +151,7 @@ class OperationsService {
   static async createOrUpdate(req) {
     if (req.user.role !== 'BR') throw new ForbiddenError('Only branch users allowed');
     // await this.enforceCutoff();
-    const payload = req.body;
+    const payload = req.body || {};
     const { target, start, end } = this.getDayBounds(payload.date);
 
     let dailyOps = await DailyOperations.findOne({ branch: req.user.branch, date: { $gte: start, $lt: end } });
