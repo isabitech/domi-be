@@ -189,8 +189,8 @@ class BranchService {
         if (!branch) throw new NotFoundError('Branch not found');
         const oldSnapshot = branch.toObject();
 
-        const usersCount = await User.countDocuments({ branch: id });
-        if (usersCount > 0) throw new ValidationError('Cannot delete branch with associated users');
+        // Detach users from this branch by nulling their branch reference
+        await User.updateMany({ branch: id }, { $set: { branch: null } });
 
         await Branch.findByIdAndDelete(id);
         logAudit({
