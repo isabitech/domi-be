@@ -39,7 +39,7 @@ app.use((req, _res, next) => {
 
 // Security middleware
 app.use(helmet());
-app.set('trust proxy', false);
+app.set('trust proxy', 1); // trust first proxy
 
 
 // Body parsing
