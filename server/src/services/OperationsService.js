@@ -152,7 +152,7 @@ class OperationsService {
     let query = { date: { $gte: startOfDay, $lt: endOfDay } };
     if (req.user.role === 'BR') query.branch = req.user.branch; else if (branchId) query.branch = branchId;
 
-    return DailyOperations.findOne(query)
+    const daily = await DailyOperations.findOne(query)
       .populate('branch', 'name code')
       .populate('user', 'name email')
       .populate('cashbook1')
@@ -162,6 +162,40 @@ class OperationsService {
       .populate('bankStatement2')
       .populate('loanRegister')
       .populate('savingsRegister');
+
+    // For branch users, preserve original format: just return the document (or null)
+    if (req.user.role === 'BR') {
+      return daily;
+    }
+
+    // For HO and admin, append summary of branches that have not submitted
+    if (req.user.role === 'HO' || req.user.role === 'admin') {
+      const allActiveBranches = await Branch.find({ isActive: { $ne: false } }).select('_id name code');
+      const branchIds = allActiveBranches.map(b => b._id);
+
+      const submittedBranchIds = await DailyOperations.distinct('branch', {
+        branch: { $in: branchIds },
+        date: { $gte: startOfDay, $lt: endOfDay },
+        isCompleted: true
+      });
+
+      const submittedSet = new Set(submittedBranchIds.map(id => id.toString()));
+      const notSubmittedBranches = allActiveBranches
+        .filter(b => !submittedSet.has(b._id.toString()))
+        .map(b => ({ id: b._id.toString(), name: b.name, code: b.code }));
+
+      const notSubmittedCount = notSubmittedBranches.length;
+
+      if (!daily) {
+        return { daily: null, notSubmittedCount, notSubmittedBranches };
+      }
+
+      const dailyObj = daily.toObject();
+      return { ...dailyObj, notSubmittedCount, notSubmittedBranches };
+    }
+
+    // Fallback for any other role: behave like original
+    return daily;
   }
 
   static async createOrUpdate(req) {
@@ -270,7 +304,7 @@ class OperationsService {
 
     // Seed zero/default payload so HO can create missing records
     const seedPayload = {
-      pcih:  req.body.pcih !== undefined ? req.body.pcih : 0,
+      pcih: req.body.pcih !== undefined ? req.body.pcih : 0,
       savings: 0,
       loanCollection: 0,
       chargesCollection: 0,
