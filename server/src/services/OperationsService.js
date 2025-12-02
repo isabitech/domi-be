@@ -182,7 +182,18 @@ class OperationsService {
     const savingsRegister = await this.buildSavingsRegister(dailyOps?.savingsRegister, req.user.branch, target, branchMeta, cb1, cb2);
     await this.upsertDisbursementRoll(req.user.branch, target, branchMeta, cb2);
 
-    if (!dailyOps) { dailyOps = new DailyOperations(); dailyOps.branch = req.user.branch; dailyOps.user = req.user.id; dailyOps.date = target; }
+    // Ensure we only ever create one DailyOperations per branch/day.
+    if (!dailyOps) {
+      const existing = await DailyOperations.findOne({ branch: req.user.branch, date: { $gte: start, $lt: end } });
+      if (existing) {
+        dailyOps = existing;
+      } else {
+        dailyOps = new DailyOperations();
+        dailyOps.branch = req.user.branch;
+        dailyOps.user = req.user.id;
+        dailyOps.date = target;
+      }
+    }
     dailyOps.cashbook1 = cb1._id; dailyOps.cashbook2 = cb2._id; dailyOps.prediction = prediction._id; dailyOps.bankStatement1 = bs1._id; dailyOps.bankStatement2 = bs2._id; dailyOps.loanRegister = loanRegister._id; dailyOps.savingsRegister = savingsRegister._id;
     await this.applyDerivedTotals(dailyOps, cb1, cb2, bs1, bs2);
     await dailyOps.save();
