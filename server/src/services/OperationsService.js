@@ -204,9 +204,9 @@ class OperationsService {
     const dailyOps = await DailyOperations.findById(req.params.id);
     if (!dailyOps) throw new NotFoundError('Daily operations not found');
     // Allow submission by the original creator or any user on the same branch
-    const isOwner = dailyOps.user && dailyOps.user.toString() === req.user.id;
-    const isSameBranch = dailyOps.branch && dailyOps.branch.toString() === req.user.branch;
-    if (!isOwner && !isSameBranch) throw new ForbiddenError('Not authorized to submit this record');
+    // const isOwner = dailyOps.user && dailyOps.user.toString() === req.user.id;
+    // const isSameBranch = dailyOps.branch && dailyOps.branch.toString() === req.user.branch;
+    // if (!isOwner && !isSameBranch) throw new ForbiddenError('Not authorized to submit this record');
     const now = new Date();
     // const cutoffHour = (await import('../config/index.js')).config.server.editCutoffHour;
     // if (now.getHours() >= cutoffHour) {
