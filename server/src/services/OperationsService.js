@@ -212,6 +212,11 @@ class OperationsService {
     const { target, start, end } = this.getDayBounds(payload.date);
 
     let dailyOps = await DailyOperations.findOne({ branch: req.user.branch, date: { $gte: start, $lt: end } });
+
+    // Once a daily operation is submitted, prevent further edits for that day.
+    if (dailyOps && dailyOps.isCompleted) {
+      throw new ForbiddenError('Daily operations already submitted for this date');
+    }
     const branchMeta = await Branch.findById(req.user.branch);
 
     const cb1 = await this.buildCashbook1(dailyOps?.cashbook1, req.user.branch, req.user.id, target, payload, req.user.role);
