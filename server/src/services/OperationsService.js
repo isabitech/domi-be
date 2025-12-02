@@ -28,12 +28,20 @@ class OperationsService {
   // }
 
   // Cashbook builders
-  static async buildCashbook1(existingId, branchId, userId, date, data) {
+  static async buildCashbook1(existingId, branchId, userId, date, data, role) {
     const src = existingId ? await Cashbook1.findById(existingId) : new Cashbook1();
     src.branch = branchId; src.user = userId; src.date = date;
     // pcih is controlled by HO; once set, branch updates must not override it.
-    if (src.pcih === undefined || src.pcih === null) {
-      src.pcih = data.pcih !== undefined ? data.pcih : 0;
+    if (role === 'HO') {
+      if (data.pcih !== undefined) {
+        src.pcih = data.pcih;
+      } else if (src.pcih === undefined || src.pcih === null) {
+        src.pcih = 0;
+      }
+    } else {
+      if (src.pcih === undefined || src.pcih === null) {
+        src.pcih = data.pcih !== undefined ? data.pcih : 0;
+      }
     }
     src.savings = data.savings !== undefined ? data.savings : (src.savings || 0);
     src.loanCollection = data.loanCollection !== undefined ? data.loanCollection : (src.loanCollection || 0);
@@ -165,7 +173,7 @@ class OperationsService {
     let dailyOps = await DailyOperations.findOne({ branch: req.user.branch, date: { $gte: start, $lt: end } });
     const branchMeta = await Branch.findById(req.user.branch);
 
-    const cb1 = await this.buildCashbook1(dailyOps?.cashbook1, req.user.branch, req.user.id, target, payload);
+    const cb1 = await this.buildCashbook1(dailyOps?.cashbook1, req.user.branch, req.user.id, target, payload, req.user.role);
     const cb2 = await this.buildCashbook2(dailyOps?.cashbook2, req.user.branch, req.user.id, target, payload);
     const prediction = await this.buildPrediction(dailyOps?.prediction, req.user.branch, req.user.id, target, payload);
     const bs1 = await this.buildBankStatement1(dailyOps?.bankStatement1, req.user.branch, target, cb1, cb2, payload.opening);
@@ -213,6 +221,35 @@ class OperationsService {
     const { target, start, end } = this.getDayBounds(date);
     await this.updateBranchPreviousValues(req.body, branchId);
 
+    // If HO provided pcih for date D, also apply it to previous day's
+    // cashbook and onlineCIH so that pcih is captured for D-1.
+    if (req.body.pcih !== undefined) {
+      const prevTarget = new Date(target.getTime() - 24 * 60 * 60 * 1000);
+      const { start: prevStart, end: prevEnd } = this.getDayBounds(prevTarget);
+
+      const prevDailyOps = await DailyOperations.findOne({
+        branch: branchId,
+        date: { $gte: prevStart, $lt: prevEnd }
+      });
+
+      if (prevDailyOps) {
+        const [cb1Prev, cb2Prev, bs1Prev, bs2Prev] = await Promise.all([
+          Cashbook1.findById(prevDailyOps.cashbook1),
+          Cashbook2.findById(prevDailyOps.cashbook2),
+          BankStatement1.findById(prevDailyOps.bankStatement1),
+          BankStatement2.findById(prevDailyOps.bankStatement2)
+        ]);
+
+        if (cb1Prev && cb2Prev && bs1Prev && bs2Prev) {
+          cb1Prev.pcih = req.body.pcih;
+          await cb1Prev.save();
+
+          await this.applyDerivedTotals(prevDailyOps, cb1Prev, cb2Prev, bs1Prev, bs2Prev);
+          await prevDailyOps.save();
+        }
+      }
+    }
+
     // Load current dailyOps (HO never creates duplicates; index enforces one per branch/day)
     let dailyOps = await DailyOperations.findOne({ branch: branchId, date: { $gte: start, $lt: end } });
     const branchMeta = await Branch.findById(branchId);
@@ -235,7 +272,7 @@ class OperationsService {
       exPurpose: ''
     };
 
-    const cb1 = await this.buildCashbook1(dailyOps?.cashbook1, branchId, req.user.id, target, seedPayload);
+    const cb1 = await this.buildCashbook1(dailyOps?.cashbook1, branchId, req.user.id, target, seedPayload, req.user.role);
     const cb2 = await this.buildCashbook2(dailyOps?.cashbook2, branchId, req.user.id, target, seedPayload);
     const prediction = await this.buildPrediction(dailyOps?.prediction, branchId, req.user.id, target, seedPayload);
     const bs1 = await this.buildBankStatement1(dailyOps?.bankStatement1, branchId, target, cb1, cb2, dailyOps?.bankStatement1 ? undefined : 0);
