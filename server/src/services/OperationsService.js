@@ -65,7 +65,14 @@ class OperationsService {
 
   // Prediction builder
   static async buildPrediction(existingId, branchId, userId, baseDate, data) {
-    const pred = existingId ? await Prediction.findById(existingId) : new Prediction();
+    let pred = null;
+
+    if (existingId) {
+      pred = await Prediction.findById(existingId);
+    }
+    if (!pred) {
+      pred = new Prediction();
+    }
     pred.branch = branchId; pred.user = userId; pred.date = baseDate;
     pred.predictionDate = new Date(baseDate.getTime() + 24 * 60 * 60 * 1000);
     pred.predictionNo = data.predictionNo !== undefined ? data.predictionNo : (pred.predictionNo || 0);
