@@ -31,21 +31,21 @@ class OperationsService {
   static async buildCashbook1(existingId, branchId, userId, date, data, role) {
     const src = existingId ? await Cashbook1.findById(existingId) : new Cashbook1();
     src.branch = branchId; src.user = userId; src.date = date;
-    // pcih is controlled by HO; once set, branch updates must not override it.
-    if (role === 'HO') {
-      if (data.pcih !== undefined) {
-        src.pcih = data.pcih;
-      } else if (src.pcih === undefined || src.pcih === null) {
-        src.pcih = 0;
-      }
-    } else {
-      if (src.pcih === undefined || src.pcih === null) {
-        src.pcih = data.pcih !== undefined ? data.pcih : 0;
-      }
+    // Allow any role to set/override pcih, frmHO, frmBR
+    if (data.pcih !== undefined) {
+      src.pcih = data.pcih;
+    } else if (src.pcih === undefined || src.pcih === null) {
+      src.pcih = 0;
     }
     src.savings = data.savings !== undefined ? data.savings : (src.savings || 0);
     src.loanCollection = data.loanCollection !== undefined ? data.loanCollection : (src.loanCollection || 0);
     src.chargesCollection = data.chargesCollection !== undefined ? data.chargesCollection : (src.chargesCollection || 0);
+    if (data.frmHO !== undefined) {
+      src.frmHO = data.frmHO;
+    }
+    if (data.frmBR !== undefined) {
+      src.frmBR = data.frmBR;
+    }
     await src.save();
     return src;
   }
