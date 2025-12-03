@@ -58,6 +58,7 @@ export const operationsSchemas = {
     body: Joi.object({
       date: Joi.date().iso().optional(),
       // Cashbook1 fields (flat structure)
+      pcih: numeric,
       savings: numeric,
       loanCollection: numeric,
       chargesCollection: numeric,
