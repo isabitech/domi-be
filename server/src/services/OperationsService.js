@@ -289,32 +289,32 @@ class OperationsService {
 
     // If HO provided pcih for date D, also apply it to previous day's
     // cashbook and onlineCIH so that pcih is captured for D-1.
-    if (req.body.pcih !== undefined) {
-      const prevTarget = new Date(target.getTime() - 24 * 60 * 60 * 1000);
-      const { start: prevStart, end: prevEnd } = this.getDayBounds(prevTarget);
+    // if (req.body.pcih !== undefined) {
+    //   const prevTarget = new Date(target.getTime() - 24 * 60 * 60 * 1000);
+    //   const { start: prevStart, end: prevEnd } = this.getDayBounds(prevTarget);
 
-      const prevDailyOps = await DailyOperations.findOne({
-        branch: branchId,
-        date: { $gte: prevStart, $lt: prevEnd }
-      });
+    //   const prevDailyOps = await DailyOperations.findOne({
+    //     branch: branchId,
+    //     date: { $gte: prevStart, $lt: prevEnd }
+    //   });
 
-      if (prevDailyOps) {
-        const [cb1Prev, cb2Prev, bs1Prev, bs2Prev] = await Promise.all([
-          Cashbook1.findById(prevDailyOps.cashbook1),
-          Cashbook2.findById(prevDailyOps.cashbook2),
-          BankStatement1.findById(prevDailyOps.bankStatement1),
-          BankStatement2.findById(prevDailyOps.bankStatement2)
-        ]);
+    //   if (prevDailyOps) {
+    //     const [cb1Prev, cb2Prev, bs1Prev, bs2Prev] = await Promise.all([
+    //       Cashbook1.findById(prevDailyOps.cashbook1),
+    //       Cashbook2.findById(prevDailyOps.cashbook2),
+    //       BankStatement1.findById(prevDailyOps.bankStatement1),
+    //       BankStatement2.findById(prevDailyOps.bankStatement2)
+    //     ]);
 
-        if (cb1Prev && cb2Prev && bs1Prev && bs2Prev) {
-          cb1Prev.pcih = req.body.pcih;
-          await cb1Prev.save();
+    //     if (cb1Prev && cb2Prev && bs1Prev && bs2Prev) {
+    //       cb1Prev.pcih = req.body.pcih;
+    //       await cb1Prev.save();
 
-          await this.applyDerivedTotals(prevDailyOps, cb1Prev, cb2Prev, bs1Prev, bs2Prev);
-          await prevDailyOps.save();
-        }
-      }
-    }
+    //       await this.applyDerivedTotals(prevDailyOps, cb1Prev, cb2Prev, bs1Prev, bs2Prev);
+    //       await prevDailyOps.save();
+    //     }
+    //   }
+    // }
 
     // Load current dailyOps (HO never creates duplicates; index enforces one per branch/day)
     let dailyOps = await DailyOperations.findOne({ branch: branchId, date: { $gte: start, $lt: end } });
