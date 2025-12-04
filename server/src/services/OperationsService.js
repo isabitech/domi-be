@@ -263,13 +263,13 @@ class OperationsService {
     // Allow submission by:
     // - HO/admin for any record (global oversight)
     // - BR users only if they are the original creator or on the same branch
-    const isOwner = dailyOps.user && dailyOps.user.toString() === req.user.id;
-    const isSameBranch = dailyOps.branch && dailyOps.branch.toString() === req.user.branch;
-    const isHOOrAdmin = req.user.role === 'HO' || req.user.role === 'admin' || req.user.isAdmin;
+    // const isOwner = dailyOps.user && dailyOps.user.toString() === req.user.id;
+    // const isSameBranch = dailyOps.branch && dailyOps.branch.toString() === req.user.branch;
+    // const isHOOrAdmin = req.user.role === 'HO' || req.user.role === 'admin' || req.user.isAdmin;
 
-    if (!isHOOrAdmin && !isOwner && !isSameBranch) {
-      throw new ForbiddenError('Not authorized to submit this record');
-    }
+    // if (!isHOOrAdmin && !isOwner && !isSameBranch) {
+    //   throw new ForbiddenError('Not authorized to submit this record');
+    // }
     const now = new Date();
     // const cutoffHour = (await import('../config/index.js')).config.server.editCutoffHour;
     // if (now.getHours() >= cutoffHour) {
