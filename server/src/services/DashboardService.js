@@ -81,36 +81,19 @@ class DashboardService {
       await currentSavingsRegister.save({ validateBeforeSave: false });
     }
 
-    const currentMonth = today.getMonth() + 1;
-    const currentYear = today.getFullYear();
-    
-    // Get the lates disbursement roll entry for this branch (now daily-based)
-    let disbursementRoll = await DisbursementRoll.findOne({
-      branch: resolvedBranchId
-    }).sort({ date: -1 });
-    
-    let monthlyDisbursementTotal = 0;
-    
-    if (disbursementRoll) {
-      // Ensure the latest disbursement entry has up-to-date cumulative calculations
-      await disbursementRoll.calculateCumulativeDisbursement();
-      await disbursementRoll.save({ validateBeforeSave: false });
-      // Reload to get the updated calculated values
-      disbursementRoll = await DisbursementRoll.findById(disbursementRoll._id);
-      monthlyDisbursementTotal = disbursementRoll.disbursementRoll;
-    } else {
-      // If no disbursement roll entries exist, calculate manually from daily operations
-      const branchMeta = await Branch.findById(resolvedBranchId);
-      const allDailyOps = await DailyOperations.find({ branch: resolvedBranchId })
-        .populate('cashbook2')
-        .sort({ date: 1 });
-      
-      const totalDailyDisbursements = allDailyOps.reduce((sum, op) => {
-        return sum + (op.cashbook2?.disAmt || 0);
-      }, 0);
-      
-      monthlyDisbursementTotal = (branchMeta?.previousDisbursement || 0) + totalDailyDisbursements;
-    }
+    // Compute disbursement total using: previousDisbursement + sum of all dailyDisbursement from rolls
+    const branchMeta = await Branch.findById(resolvedBranchId);
+
+    const prevDisbursement = branchMeta?.previousDisbursement || 0;
+
+    // Sum dailyDisbursement across all DisbursementRoll records for this branch
+    const allDisbursementRolls = await DisbursementRoll.find({ branch: resolvedBranchId }).lean();
+    const totalDailyDisbursementFromRolls = allDisbursementRolls.reduce(
+      (sum, roll) => sum + (roll.dailyDisbursement || 0),
+      0
+    );
+
+    const monthlyDisbursementTotal = prevDisbursement + totalDailyDisbursementFromRolls;
 
     return {
       todayOperations,
