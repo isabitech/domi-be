@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 const migrateDisbursementRoll = async () => {
   try {
     // Connect to MongoDB
-    const mongoUrl = process.env.MONGO_URI || 'mongodb+srv://dominionglobalfirms:iuwPGxzCLIz4lV3C@cluster0.rf2jlcm.mongodb.net/dominion_backend?retryWrites=true&w=majority';
+    const mongoUrl = process.env.MONGO_URI || 'mongodb://localhost:27017/domi';
     await mongoose.connect(mongoUrl);
     console.log('Connected to MongoDB for migration');
 
