@@ -104,20 +104,40 @@ class OperationsService {
   // Registers builders
   static async buildLoanRegister(existingId, branchId, date, branchMeta, cb2, cb1) {
     const lr = existingId ? await LoanRegister.findById(existingId) : new LoanRegister();
+    const oldLoanDisbursementWithInterest = lr.loanDisbursementWithInterest;
+    const oldLoanCollection = lr.loanCollection;
+    
     lr.branch = branchId; lr.date = date;
     lr.previousLoanTotal = branchMeta.previousLoanTotal;
     lr.loanDisbursementWithInterest = cb2.disWithInt;
     lr.loanCollection = cb1.loanCollection;
+    
     await lr.save();
+    
+    // If loan data changed, recalculate all subsequent days
+    if (oldLoanDisbursementWithInterest !== cb2.disWithInt || oldLoanCollection !== cb1.loanCollection) {
+      await LoanRegister.recalculateFromDate(branchId, date);
+    }
+    
     return lr;
   }
 
   static async buildSavingsRegister(existingId, branchId, date, branchMeta, cb1, cb2) {
     const sr = existingId ? await SavingsRegister.findById(existingId) : new SavingsRegister();
+    const oldSavings = sr.savings;
+    const oldSavingsWithdrawal = sr.savingsWithdrawal;
+    
     sr.branch = branchId; sr.date = date;
     sr.previousSavingsTotal = branchMeta.previousSavingsTotal;
     sr.savings = cb1.savings; sr.savingsWithdrawal = cb2.savWith;
+    
     await sr.save();
+    
+    // If savings data changed, recalculate all subsequent days
+    if (oldSavings !== cb1.savings || oldSavingsWithdrawal !== cb2.savWith) {
+      await SavingsRegister.recalculateFromDate(branchId, date);
+    }
+    
     return sr;
   }
 

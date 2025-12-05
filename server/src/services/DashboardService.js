@@ -67,7 +67,16 @@ class DashboardService {
     }).populate(['cashbook1', 'cashbook2']).sort({ date: 1 });
 
     const currentLoanRegister = await LoanRegister.findOne({ branch: resolvedBranchId }).sort({ date: -1 });
+    if (currentLoanRegister) {
+      await currentLoanRegister.calculateCumulativeLoanBalance();
+      await currentLoanRegister.save({ validateBeforeSave: false });
+    }
+    
     const currentSavingsRegister = await SavingsRegister.findOne({ branch: resolvedBranchId }).sort({ date: -1 });
+    if (currentSavingsRegister) {
+      await currentSavingsRegister.calculateCumulativeSavings();
+      await currentSavingsRegister.save({ validateBeforeSave: false });
+    }
 
     const currentMonth = today.getMonth() + 1;
     const currentYear = today.getFullYear();

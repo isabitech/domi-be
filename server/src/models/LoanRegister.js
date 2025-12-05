@@ -44,20 +44,57 @@ const loanRegisterSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Calculate current loan balance before saving
-loanRegisterSchema.pre('save', async function(next) {
+// Method to calculate cumulative loan balance including all previous days
+loanRegisterSchema.methods.calculateCumulativeLoanBalance = async function() {
+  const LoanRegister = this.constructor;
+  
+  // Get all previous loan register entries for this branch before current date
+  const previousEntries = await LoanRegister.find({
+    branch: this.branch,
+    date: { $lt: this.date }
+  }).sort({ date: 1 }).lean();
+  
+  // Sum up all previous days' net loan changes (disbursements - collections)
+  const cumulativePreviousLoans = previousEntries.reduce((sum, entry) => {
+    return sum + (entry.loanDisbursementWithInterest || 0) - (entry.loanCollection || 0);
+  }, 0);
+  
   // Fetch branch to access multiplier
   try {
     const Branch = (await import('./Branch.js')).default;
     const branch = await Branch.findById(this.branch).select('loanMultiplier');
     const multiplier = branch?.loanMultiplier ?? 1;
-    this.currentLoanBalance = (this.previousLoanTotal * multiplier) + this.loanDisbursementWithInterest - this.loanCollection;
+    
+    // Final cumulative calculation
+    this.currentLoanBalance = (this.previousLoanTotal * multiplier || 0) + cumulativePreviousLoans + (this.loanDisbursementWithInterest || 0) - (this.loanCollection || 0);
   } catch (e) {
-    // Fallback to previous formula if branch fetch fails
-    this.currentLoanBalance = this.previousLoanTotal + this.loanDisbursementWithInterest - this.loanCollection;
+    // Fallback calculation if branch fetch fails
+    this.currentLoanBalance = (this.previousLoanTotal || 0) + cumulativePreviousLoans + (this.loanDisbursementWithInterest || 0) - (this.loanCollection || 0);
   }
+};
+
+// Calculate current loan balance before saving
+loanRegisterSchema.pre('save', async function(next) {
+  await this.calculateCumulativeLoanBalance();
   next();
 });
+
+// Static method to recalculate loan balance for current day and all subsequent days
+loanRegisterSchema.statics.recalculateFromDate = async function(branchId, fromDate) {
+  const LoanRegister = this;
+  
+  // Find all loan register entries for this branch from the given date onwards
+  const entries = await LoanRegister.find({
+    branch: branchId,
+    date: { $gte: fromDate }
+  }).sort({ date: 1 });
+  
+  // Recalculate each entry in chronological order
+  for (const entry of entries) {
+    await entry.calculateCumulativeLoanBalance();
+    await entry.save({ validateBeforeSave: false }); // Skip validation to avoid infinite loop
+  }
+};
 
 // Index for better query performance
 loanRegisterSchema.index({ branch: 1, date: -1 });
