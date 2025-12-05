@@ -59,18 +59,8 @@ loanRegisterSchema.methods.calculateCumulativeLoanBalance = async function() {
     return sum + (entry.loanDisbursementWithInterest || 0) - (entry.loanCollection || 0);
   }, 0);
   
-  // Fetch branch to access multiplier
-  try {
-    const Branch = (await import('./Branch.js')).default;
-    const branch = await Branch.findById(this.branch).select('loanMultiplier');
-    const multiplier = branch?.loanMultiplier ?? 1;
-    
-    // Final cumulative calculation
-    this.currentLoanBalance = (this.previousLoanTotal * multiplier || 0) + cumulativePreviousLoans + (this.loanDisbursementWithInterest || 0) - (this.loanCollection || 0);
-  } catch (e) {
-    // Fallback calculation if branch fetch fails
-    this.currentLoanBalance = (this.previousLoanTotal || 0) + cumulativePreviousLoans + (this.loanDisbursementWithInterest || 0) - (this.loanCollection || 0);
-  }
+  // Final cumulative calculation (no multiplier, just direct addition as per your formula)
+  this.currentLoanBalance = (this.previousLoanTotal || 0) + cumulativePreviousLoans + (this.loanDisbursementWithInterest || 0) - (this.loanCollection || 0);
 };
 
 // Calculate current loan balance before saving
