@@ -106,20 +106,9 @@ class OperationsService {
     const lr = existingId ? await LoanRegister.findById(existingId) : new LoanRegister();
     lr.branch = branchId; lr.date = date;
     lr.previousLoanTotal = branchMeta.previousLoanTotal;
-    
-    // Check if loan disbursement or collection data has changed
-    const disbursementChanged = lr.loanDisbursementWithInterest !== cb2.disWithInt;
-    const collectionChanged = lr.loanCollection !== cb1.loanCollection;
-    
     lr.loanDisbursementWithInterest = cb2.disWithInt;
     lr.loanCollection = cb1.loanCollection;
     await lr.save();
-    
-    // If loan disbursement or collection data changed, recalculate all subsequent days
-    if (disbursementChanged || collectionChanged) {
-      await LoanRegister.recalculateFromDate(branchId, date);
-    }
-    
     return lr;
   }
 
@@ -127,64 +116,32 @@ class OperationsService {
     const sr = existingId ? await SavingsRegister.findById(existingId) : new SavingsRegister();
     sr.branch = branchId; sr.date = date;
     sr.previousSavingsTotal = branchMeta.previousSavingsTotal;
-    
-    // Check if savings or withdrawal data has changed
-    const savingsChanged = sr.savings !== cb1.savings;
-    const withdrawalChanged = sr.savingsWithdrawal !== cb2.savWith;
-    
     sr.savings = cb1.savings; sr.savingsWithdrawal = cb2.savWith;
     await sr.save();
-    
-    // If savings or withdrawal data changed, recalculate all subsequent days
-    if (savingsChanged || withdrawalChanged) {
-      await SavingsRegister.recalculateFromDate(branchId, date);
-    }
-    
     return sr;
   }
 
-  // Disbursement roll upsert (now daily-based with cumulative calculation)
+  // Disbursement roll upsert
   static async upsertDisbursementRoll(branchId, date, branchMeta, cb2) {
-    const month = date.getMonth() + 1; 
-    const year = date.getFullYear();
-    const startOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-    const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
-    
-    // Look for existing entry for this specific date
-    let roll = await DisbursementRoll.findOne({ 
-      branch: branchId, 
-      date: { $gte: startOfDay, $lt: endOfDay }
-    });
-    
-    // Check if disbursement data has changed
-    const disbursementChanged = !roll || roll.dailyDisbursement !== cb2.disAmt;
-    const disbursementNoChanged = !roll || roll.dailyDisNo !== cb2.disNo;
-    
+    const month = date.getMonth() + 1; const year = date.getFullYear();
+    let roll = await DisbursementRoll.findOne({ branch: branchId, month, year });
     if (!roll) {
       roll = new DisbursementRoll({
         branch: branchId,
-        date: startOfDay,
         month,
         year,
         previousDisbursement: branchMeta.previousDisbursement,
         previousDisbursementRollNo: branchMeta.previousDisbursementRollNo,
-        dailyDisbursement: cb2.disAmt || 0,
-        dailyDisNo: cb2.disNo || 0
+        dailyDisbursement: cb2.disAmt,
+        disNo: cb2.disNo
       });
     } else {
-      roll.dailyDisbursement = cb2.disAmt || 0;
-      roll.dailyDisNo = cb2.disNo || 0;
-      roll.previousDisbursement = branchMeta.previousDisbursement;
-      roll.previousDisbursementRollNo = branchMeta.previousDisbursementRollNo;
+      // Treat disAmt as the current month's total from Cashbook2,
+      // so edits to the same day don't double-count.
+      roll.dailyDisbursement = cb2.disAmt;
+      roll.disNo = cb2.disNo;
     }
-    
     await roll.save();
-    
-    // If disbursement data changed, recalculate all subsequent days
-    if (disbursementChanged || disbursementNoChanged) {
-      await DisbursementRoll.recalculateFromDate(branchId, startOfDay);
-    }
-    
     return roll;
   }
 
