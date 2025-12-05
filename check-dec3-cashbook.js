@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 async function checkCashbook2December3() {
   try {
-    await mongoose.connect('mongodb+srv://isabitechng_db_user:domi_seedstars_ng@cluster0.rf2jlcm.mongodb.net/?appName=Cluster0');
+    await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/domi');
     
     const branchId = '692ef31ad6ea4db16c55d7f0';
     

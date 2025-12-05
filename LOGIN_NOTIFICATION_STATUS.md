@@ -39,9 +39,9 @@ The system has been updated to send email notifications to Head Office (HO) user
 
 The system uses these environment variables from your `.env`:
 ```
-BREVO_API_KEY=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
-BREVO_SENDER_EMAIL=isabitechng@gmail.com
-BREVO_SENDER_NAME=Domi Seedstars Nig Ltd
+BREVO_API_KEY=your_brevo_api_key_here
+BREVO_SENDER_EMAIL=your_sender_email@domain.com
+BREVO_SENDER_NAME=Your Company Name
 ```
 
 ### 🧪 **Testing:**

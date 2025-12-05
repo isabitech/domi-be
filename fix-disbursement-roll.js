@@ -40,7 +40,7 @@ DisbursementRollSchema.methods.calculateCumulativeDisbursement = async function(
 
 async function fixMissingDisbursementRoll() {
   try {
-    await mongoose.connect('mongodb+srv://isabitechng_db_user:domi_seedstars_ng@cluster0.rf2jlcm.mongodb.net/?appName=Cluster0');
+    await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/domi');
     
     const DisbursementRoll = mongoose.model('DisbursementRoll', DisbursementRollSchema);
     
