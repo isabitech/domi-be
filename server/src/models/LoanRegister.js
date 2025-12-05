@@ -44,20 +44,57 @@ const loanRegisterSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Calculate current loan balance before saving
+// Calculate current loan balance before saving (cumulative across all previous days)
 loanRegisterSchema.pre('save', async function(next) {
+  await this.calculateCumulativeLoanBalance();
+  next();
+});
+
+// Calculate cumulative loan balance across all previous days
+loanRegisterSchema.methods.calculateCumulativeLoanBalance = async function() {
+  const LoanRegister = this.constructor;
+  
   // Fetch branch to access multiplier
+  let multiplier = 1;
   try {
     const Branch = (await import('./Branch.js')).default;
     const branch = await Branch.findById(this.branch).select('loanMultiplier');
-    const multiplier = branch?.loanMultiplier ?? 1;
-    this.currentLoanBalance = (this.previousLoanTotal * multiplier) + this.loanDisbursementWithInterest - this.loanCollection;
+    multiplier = branch?.loanMultiplier ?? 1;
   } catch (e) {
-    // Fallback to previous formula if branch fetch fails
-    this.currentLoanBalance = this.previousLoanTotal + this.loanDisbursementWithInterest - this.loanCollection;
+    // Use fallback multiplier if branch fetch fails
   }
-  next();
-});
+
+  // Get all previous loan registers for this branch, sorted by date
+  const previousRegisters = await LoanRegister.find({
+    branch: this.branch,
+    date: { $lt: this.date }
+  }).sort({ date: 1 });
+
+  // Sum all previous days' net loan changes (disbursements - collections)
+  const allPreviousDaysLoanBalance = previousRegisters.reduce((sum, register) => {
+    return sum + (register.loanDisbursementWithInterest - register.loanCollection);
+  }, 0);
+
+  // Calculate cumulative: (HO baseline × multiplier) + all previous days + current day
+  this.currentLoanBalance = (this.previousLoanTotal * multiplier) + allPreviousDaysLoanBalance + (this.loanDisbursementWithInterest - this.loanCollection);
+};
+
+// Static method to recalculate all loan registers after a specific date
+loanRegisterSchema.statics.calculateCumulativeLoanBalance = async function(branchId, fromDate = null) {
+  const query = { branch: branchId };
+  if (fromDate) {
+    query.date = { $gte: fromDate };
+  }
+
+  const registers = await this.find(query).sort({ date: 1 });
+  
+  for (const register of registers) {
+    await register.calculateCumulativeLoanBalance();
+    await register.save({ validateBeforeSave: false });
+  }
+  
+  return { updated: registers.length };
+};
 
 // Index for better query performance
 loanRegisterSchema.index({ branch: 1, date: -1 });

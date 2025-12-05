@@ -70,8 +70,16 @@ class DashboardService {
     let currentLoanRegister = await LoanRegister.findOne({ branch: resolvedBranchId }).sort({ date: -1 });
     let currentSavingsRegister = await SavingsRegister.findOne({ branch: resolvedBranchId }).sort({ date: -1 });
 
-    // The registers already have calculated values from pre-save hooks
-    // No need to manually recalculate since calculations are done automatically
+    // Ensure the latest entries have up-to-date cumulative calculations
+    if (currentLoanRegister) {
+      await currentLoanRegister.calculateCumulativeLoanBalance();
+      await currentLoanRegister.save({ validateBeforeSave: false });
+    }
+
+    if (currentSavingsRegister) {
+      await currentSavingsRegister.calculateCumulativeSavings();
+      await currentSavingsRegister.save({ validateBeforeSave: false });
+    }
 
     const currentMonth = today.getMonth() + 1;
     const currentYear = today.getFullYear();
@@ -84,7 +92,11 @@ class DashboardService {
     let monthlyDisbursementTotal = 0;
     
     if (disbursementRoll) {
-      // The disbursement roll already has calculated values from pre-save hook
+      // Ensure the latest disbursement entry has up-to-date cumulative calculations
+      await disbursementRoll.calculateCumulativeDisbursement();
+      await disbursementRoll.save({ validateBeforeSave: false });
+      // Reload to get the updated calculated values
+      disbursementRoll = await DisbursementRoll.findById(disbursementRoll._id);
       monthlyDisbursementTotal = disbursementRoll.disbursementRoll;
     } else {
       // If no disbursement roll entries exist, calculate manually from daily operations
@@ -220,8 +232,14 @@ class DashboardService {
       { $replaceRoot: { newRoot: '$latestEntry' } }
     ]);
     
-    // The disbursement rolls already have calculated values from pre-save hooks
-    // No need to manually recalculate since calculations are done automatically
+    // Ensure each latest entry has up-to-date calculations
+    for (const rollData of disbursementRolls) {
+      const roll = await DisbursementRoll.findById(rollData._id);
+      if (roll) {
+        await roll.calculateCumulativeDisbursement();
+        await roll.save({ validateBeforeSave: false });
+      }
+    }
     
     summaryAccumulator.totalDisbursementRollNo = disbursementRolls.reduce((sum, roll) => sum + (roll.disNo || 0), 0);
 

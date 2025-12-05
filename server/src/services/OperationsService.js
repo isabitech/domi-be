@@ -121,27 +121,29 @@ class OperationsService {
     return sr;
   }
 
-  // Disbursement roll upsert
+  // Disbursement roll upsert (now daily-based)
   static async upsertDisbursementRoll(branchId, date, branchMeta, cb2) {
-    const month = date.getMonth() + 1; const year = date.getFullYear();
-    let roll = await DisbursementRoll.findOne({ branch: branchId, month, year });
+    const startOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    
+    let roll = await DisbursementRoll.findOne({ branch: branchId, date: startOfDay });
     if (!roll) {
       roll = new DisbursementRoll({
         branch: branchId,
-        month,
-        year,
-        previousDisbursement: branchMeta.previousDisbursement,
-        previousDisbursementRollNo: branchMeta.previousDisbursementRollNo,
-        dailyDisbursement: cb2.disAmt,
-        disNo: cb2.disNo
+        date: startOfDay,
+        previousDisbursementRollNo: branchMeta.previousDisbursementRollNo || 0,
+        currentDayDisbursementRollNo: cb2.disNo || 0,
+        disNo: cb2.disNo || 0
       });
     } else {
-      // Treat disAmt as the current month's total from Cashbook2,
-      // so edits to the same day don't double-count.
-      roll.dailyDisbursement = cb2.disAmt;
-      roll.disNo = cb2.disNo;
+      // Update current day's disbursement roll number
+      roll.currentDayDisbursementRollNo = cb2.disNo || 0;
+      roll.disNo = cb2.disNo || 0;
     }
     await roll.save();
+    
+    // Trigger cascading updates for all subsequent dates
+    await DisbursementRoll.calculateCumulativeDisbursement(branchId, startOfDay);
+    
     return roll;
   }
 
@@ -227,6 +229,10 @@ class OperationsService {
     const loanRegister = await this.buildLoanRegister(dailyOps?.loanRegister, req.user.branch, target, branchMeta, cb2, cb1);
     const savingsRegister = await this.buildSavingsRegister(dailyOps?.savingsRegister, req.user.branch, target, branchMeta, cb1, cb2);
     await this.upsertDisbursementRoll(req.user.branch, target, branchMeta, cb2);
+
+    // Trigger cascading updates for loan and savings registers after this date
+    await LoanRegister.calculateCumulativeLoanBalance(req.user.branch, target);
+    await SavingsRegister.calculateCumulativeSavings(req.user.branch, target);
 
     // Ensure we only ever create one DailyOperations per branch/day.
     if (!dailyOps) {
@@ -345,6 +351,11 @@ class OperationsService {
     const bs2 = await this.buildBankStatement2(dailyOps?.bankStatement2, branchId, req.user.id, target, cb1, seedPayload);
     const loanRegister = await this.buildLoanRegister(dailyOps?.loanRegister, branchId, target, branchMeta, cb2, cb1);
     const savingsRegister = await this.buildSavingsRegister(dailyOps?.savingsRegister, branchId, target, branchMeta, cb1, cb2);
+    await this.upsertDisbursementRoll(branchId, target, branchMeta, cb2);
+
+    // Trigger cascading updates for loan and savings registers after this date
+    await LoanRegister.calculateCumulativeLoanBalance(branchId, target);
+    await SavingsRegister.calculateCumulativeSavings(branchId, target);
 
     if (!dailyOps) {
       dailyOps = new DailyOperations({ branch: branchId, user: req.user.id, date: target });

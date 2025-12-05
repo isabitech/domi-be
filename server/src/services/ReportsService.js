@@ -323,8 +323,16 @@ class ReportsService {
       let latestLoanRegister = await LoanRegister.findOne({ branch: branch._id }).sort({ date: -1 });
       let latestSavingsRegister = await SavingsRegister.findOne({ branch: branch._id }).sort({ date: -1 });
 
-      // The registers already have calculated values from pre-save hooks
-      // No need to manually recalculate since calculations are done automatically
+      // Recalculate to ensure latest cumulative values
+      if (latestLoanRegister) {
+        await latestLoanRegister.calculateCumulativeLoanBalance();
+        await latestLoanRegister.save({ validateBeforeSave: false });
+      }
+
+      if (latestSavingsRegister) {
+        await latestSavingsRegister.calculateCumulativeSavings();
+        await latestSavingsRegister.save({ validateBeforeSave: false });
+      }
 
       results.push({
         _id: branch._id,
