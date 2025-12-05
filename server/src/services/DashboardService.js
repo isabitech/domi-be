@@ -81,19 +81,12 @@ class DashboardService {
       await currentSavingsRegister.save({ validateBeforeSave: false });
     }
 
-    // Compute disbursement total using: previousDisbursement + sum of all dailyDisbursement from rolls
-    const branchMeta = await Branch.findById(resolvedBranchId);
+    // Compute disbursement total using the latest DisbursementRoll amount-side total
+    const latestDisbursementRoll = await DisbursementRoll.findOne({ branch: resolvedBranchId })
+      .sort({ date: -1 })
+      .lean();
 
-    const prevDisbursement = branchMeta?.previousDisbursement || 0;
-
-    // Sum dailyDisbursement across all DisbursementRoll records for this branch
-    const allDisbursementRolls = await DisbursementRoll.find({ branch: resolvedBranchId }).lean();
-    const totalDailyDisbursementFromRolls = allDisbursementRolls.reduce(
-      (sum, roll) => sum + (roll.dailyDisbursement || 0),
-      0
-    );
-
-    const monthlyDisbursementTotal = prevDisbursement + totalDailyDisbursementFromRolls;
+    const monthlyDisbursementTotal = latestDisbursementRoll?.currentDisbursement || 0;
 
     return {
       todayOperations,

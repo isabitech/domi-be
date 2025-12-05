@@ -22,6 +22,19 @@ const disbursementRollSchema = new mongoose.Schema({
     required: true,
     default: Date.now
   },
+  // Amount-side fields
+  previousDisbursement: {
+    type: Number,
+    default: 0 // HO input for amount baseline
+  },
+  dailyDisbursement: {
+    type: Number,
+    default: 0 // Sum of all daily disbursements for the period (from Cashbook2 or ops)
+  },
+  currentDisbursement: {
+    type: Number,
+    default: 0 // Cumulative amount: previousDisbursement + dailyDisbursement
+  },
   previousDisbursementRollNo: {
     type: Number,
     default: 0 // HO input
@@ -43,7 +56,7 @@ const disbursementRollSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Calculate disbursement roll before saving (cumulative across all previous days)
+// Calculate disbursement roll and amount before saving (cumulative across all previous days)
 disbursementRollSchema.pre('save', async function(next) {
   await this.calculateCumulativeDisbursement();
   next();
@@ -64,8 +77,11 @@ disbursementRollSchema.methods.calculateCumulativeDisbursement = async function(
     return sum + (roll.currentDayDisbursementRollNo || 0);
   }, 0);
 
-  // Calculate cumulative: HO baseline + all previous days + current day
+  // Calculate cumulative roll number: HO baseline + all previous days + current day
   this.disbursementRoll = this.previousDisbursementRollNo + allPreviousDaysDisbursements + this.currentDayDisbursementRollNo;
+
+  // Calculate amount-side currentDisbursement = previousDisbursement + dailyDisbursement
+  this.currentDisbursement = (this.previousDisbursement || 0) + (this.dailyDisbursement || 0);
 };
 
 // Static method to recalculate all disbursement rolls after a specific date
