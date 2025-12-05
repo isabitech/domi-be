@@ -44,11 +44,50 @@ const savingsRegisterSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Calculate current savings before saving
-savingsRegisterSchema.pre('save', function(next) {
-  this.currentSavings = this.savings + this.previousSavingsTotal - this.savingsWithdrawal;
+// Calculate current savings before saving (cumulative approach)
+savingsRegisterSchema.pre('save', async function(next) {
+  await this.calculateCumulativeSavings();
   next();
 });
+
+// Method to calculate cumulative savings including all previous days
+savingsRegisterSchema.methods.calculateCumulativeSavings = async function() {
+  const SavingsRegister = this.constructor;
+  
+  // Get all previous savings register entries for this branch before current date
+  const previousEntries = await SavingsRegister.find({
+    branch: this.branch,
+    date: { $lt: this.date }
+  }).sort({ date: 1 }).lean();
+  
+  // Sum up all previous days' net savings (savings - withdrawal)
+  const cumulativePreviousNetSavings = previousEntries.reduce((sum, entry) => {
+    return sum + (entry.savings || 0) - (entry.savingsWithdrawal || 0);
+  }, 0);
+  
+  // Current day net savings
+  const currentDayNetSavings = (this.savings || 0) - (this.savingsWithdrawal || 0);
+  
+  // Final cumulative calculation
+  this.currentSavings = (this.previousSavingsTotal || 0) + cumulativePreviousNetSavings + currentDayNetSavings;
+};
+
+// Static method to recalculate savings for current day and all subsequent days
+savingsRegisterSchema.statics.recalculateFromDate = async function(branchId, fromDate) {
+  const SavingsRegister = this;
+  
+  // Find all savings register entries for this branch from the given date onwards
+  const entries = await SavingsRegister.find({
+    branch: branchId,
+    date: { $gte: fromDate }
+  }).sort({ date: 1 });
+  
+  // Recalculate each entry in chronological order
+  for (const entry of entries) {
+    await entry.calculateCumulativeSavings();
+    await entry.save({ validateBeforeSave: false }); // Skip validation to avoid infinite loop
+  }
+};
 
 // Index for better query performance
 savingsRegisterSchema.index({ branch: 1, date: -1 });

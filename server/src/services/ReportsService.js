@@ -1,6 +1,8 @@
 import DailyOperations from '../models/DailyOperations.js';
 import DisbursementRoll from '../models/DisbursementRoll.js';
 import Branch from '../models/Branch.js';
+import LoanRegister from '../models/LoanRegister.js';
+import SavingsRegister from '../models/SavingsRegister.js';
 import { ForbiddenError, ValidationError } from '../utils/errors.js';
 
 
@@ -313,11 +315,35 @@ class ReportsService {
 
   // Helper: Fetch latest register balances per branch
   static async fetchCurrentRegisters() {
-    return Branch.aggregate([
-      { $lookup: { from: 'loanregisters', let: { branchId: '$_id' }, pipeline: [ { $match: { $expr: { $eq: ['$branch', '$$branchId'] } } }, { $sort: { date: -1 } }, { $limit: 1 } ], as: 'latestLoanRegister' } },
-      { $lookup: { from: 'savingsregisters', let: { branchId: '$_id' }, pipeline: [ { $match: { $expr: { $eq: ['$branch', '$$branchId'] } } }, { $sort: { date: -1 } }, { $limit: 1 } ], as: 'latestSavingsRegister' } },
-      { $project: { name: 1, code: 1, currentLoanBalance: { $ifNull: [ { $arrayElemAt: ['$latestLoanRegister.currentLoanBalance', 0] }, 0 ] }, currentSavingsBalance: { $ifNull: [ { $arrayElemAt: ['$latestSavingsRegister.currentSavings', 0] }, 0 ] } } }
-    ]);
+    const branches = await Branch.find().lean();
+    const results = [];
+
+    for (const branch of branches) {
+      // Get the most recent registers and ensure they have up-to-date calculations
+      let latestLoanRegister = await LoanRegister.findOne({ branch: branch._id }).sort({ date: -1 });
+      let latestSavingsRegister = await SavingsRegister.findOne({ branch: branch._id }).sort({ date: -1 });
+
+      // Recalculate to ensure latest cumulative values
+      if (latestLoanRegister) {
+        await latestLoanRegister.calculateCumulativeLoanBalance();
+        await latestLoanRegister.save({ validateBeforeSave: false });
+      }
+
+      if (latestSavingsRegister) {
+        await latestSavingsRegister.calculateCumulativeSavings();
+        await latestSavingsRegister.save({ validateBeforeSave: false });
+      }
+
+      results.push({
+        _id: branch._id,
+        name: branch.name,
+        code: branch.code,
+        currentLoanBalance: latestLoanRegister?.currentLoanBalance || 0,
+        currentSavingsBalance: latestSavingsRegister?.currentSavings || 0
+      });
+    }
+
+    return results;
   }
 
   // Helper: Assemble consolidated response

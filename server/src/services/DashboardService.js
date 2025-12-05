@@ -66,16 +66,51 @@ class DashboardService {
       date: { $gte: sevenDaysAgo, $lte: today }
     }).populate(['cashbook1', 'cashbook2']).sort({ date: 1 });
 
-    const currentLoanRegister = await LoanRegister.findOne({ branch: resolvedBranchId }).sort({ date: -1 });
-    const currentSavingsRegister = await SavingsRegister.findOne({ branch: resolvedBranchId }).sort({ date: -1 });
+    // Get the most recent loan and savings register entries with recalculated values
+    let currentLoanRegister = await LoanRegister.findOne({ branch: resolvedBranchId }).sort({ date: -1 });
+    let currentSavingsRegister = await SavingsRegister.findOne({ branch: resolvedBranchId }).sort({ date: -1 });
+
+    // Ensure the latest entries have up-to-date cumulative calculations
+    if (currentLoanRegister) {
+      await currentLoanRegister.calculateCumulativeLoanBalance();
+      await currentLoanRegister.save({ validateBeforeSave: false });
+    }
+
+    if (currentSavingsRegister) {
+      await currentSavingsRegister.calculateCumulativeSavings();
+      await currentSavingsRegister.save({ validateBeforeSave: false });
+    }
 
     const currentMonth = today.getMonth() + 1;
     const currentYear = today.getFullYear();
-    const disbursementRoll = await DisbursementRoll.findOne({
-      branch: resolvedBranchId,
-      month: currentMonth,
-      year: currentYear
-    });
+    
+    // Get the latest disbursement roll entry for this branch (now daily-based)
+    let disbursementRoll = await DisbursementRoll.findOne({
+      branch: resolvedBranchId
+    }).sort({ date: -1 });
+    
+    let monthlyDisbursementTotal = 0;
+    
+    if (disbursementRoll) {
+      // Ensure the latest disbursement entry has up-to-date cumulative calculations
+      await disbursementRoll.calculateCumulativeDisbursement();
+      await disbursementRoll.save({ validateBeforeSave: false });
+      // Reload to get the updated calculated values
+      disbursementRoll = await DisbursementRoll.findById(disbursementRoll._id);
+      monthlyDisbursementTotal = disbursementRoll.disbursementRoll;
+    } else {
+      // If no disbursement roll entries exist, calculate manually from daily operations
+      const branchMeta = await Branch.findById(resolvedBranchId);
+      const allDailyOps = await DailyOperations.find({ branch: resolvedBranchId })
+        .populate('cashbook2')
+        .sort({ date: 1 });
+      
+      const totalDailyDisbursements = allDailyOps.reduce((sum, op) => {
+        return sum + (op.cashbook2?.disAmt || 0);
+      }, 0);
+      
+      monthlyDisbursementTotal = (branchMeta?.previousDisbursement || 0) + totalDailyDisbursements;
+    }
 
     return {
       todayOperations,
@@ -90,7 +125,7 @@ class DashboardService {
       currentRegisters: {
         loanBalance: currentLoanRegister?.currentLoanBalance || 0,
         savingsBalance: currentSavingsRegister?.currentSavings || 0,
-        monthlyDisbursement: disbursementRoll?.disbursementRoll || 0
+        monthlyDisbursement: monthlyDisbursementTotal
       }
     };
   }
@@ -182,13 +217,30 @@ class DashboardService {
       if (!branchStats.lastOperation || op.date > branchStats.lastOperation) branchStats.lastOperation = op.date;
     });
 
-    // Aggregate disbursement roll numbers for the same branch scope and period
-    const disRollQuery = {};
+    // Aggregate disbursement roll numbers for the same branch scope and period (now from daily entries)
+    const disRollQuery = { date: dateFilter.date || { $exists: true } };
     if (branchId) {
       const branchObjectId = branchId instanceof mongoose.Types.ObjectId ? branchId : new mongoose.Types.ObjectId(branchId);
       disRollQuery.branch = branchObjectId;
     }
-    const disbursementRolls = await DisbursementRoll.find(disRollQuery).lean();
+    
+    // Get the latest disbursement roll entry for each branch to get current cumulative totals
+    const disbursementRolls = await DisbursementRoll.aggregate([
+      { $match: disRollQuery },
+      { $sort: { branch: 1, date: -1 } },
+      { $group: { _id: '$branch', latestEntry: { $first: '$$ROOT' } } },
+      { $replaceRoot: { newRoot: '$latestEntry' } }
+    ]);
+    
+    // Ensure each latest entry has up-to-date calculations
+    for (const rollData of disbursementRolls) {
+      const roll = await DisbursementRoll.findById(rollData._id);
+      if (roll) {
+        await roll.calculateCumulativeDisbursement();
+        await roll.save({ validateBeforeSave: false });
+      }
+    }
+    
     summaryAccumulator.totalDisbursementRollNo = disbursementRolls.reduce((sum, roll) => sum + (roll.disNo || 0), 0);
 
     const consolidatedSummary = summaryAccumulator.totalOperations

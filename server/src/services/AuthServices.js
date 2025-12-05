@@ -124,20 +124,99 @@ class AuthService {
 
             if (!hoUsers.length) return;
 
-            const branchName = branch?.name || 'Unknown';
+            const branchName = branch?.name || 'Unknown Branch';
             const branchCode = branch?.code ? ` (${branch.code})` : '';
-            const loginTime = new Date().toLocaleString();
-            const message = `Branch ${branchName}${branchCode} (${user.name}) logged in at ${loginTime}`;
+            const loginTime = new Date().toLocaleString('en-NG', {
+                timeZone: 'Africa/Lagos',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
 
-            hoUsers.forEach((ho) => {
-                enqueueEmail({
+            // Send enhanced notification to each HO user
+            for (const ho of hoUsers) {
+                await sendEmail({
                     email: ho.email,
-                    subject: 'Branch Login Notification',
-                    message
+                    name: ho.name,
+                    subject: `🔔 Branch Login Alert - ${branchName}`,
+                    message: `Branch Login Notification\n\nBranch: ${branchName}${branchCode}\nUser: ${user.name}\nEmail: ${user.email}\nLogin Time: ${loginTime}\n\nThis is an automated notification from the Dominion Operations Management System.`,
+                    html: `
+                        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+                            <div style="background-color: #007bff; color: white; padding: 15px; border-radius: 8px 8px 0 0; text-align: center;">
+                                <h2 style="margin: 0;">🔔 Branch Login Alert</h2>
+                            </div>
+                            <div style="padding: 20px; background-color: #f9f9f9;">
+                                <h3 style="color: #333; margin-top: 0;">Branch Login Notification</h3>
+                                <table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
+                                    <tr style="border-bottom: 1px solid #ddd;">
+                                        <td style="padding: 8px 0; font-weight: bold; color: #555;">Branch:</td>
+                                        <td style="padding: 8px 0; color: #333;">${branchName}${branchCode}</td>
+                                    </tr>
+                                    <tr style="border-bottom: 1px solid #ddd;">
+                                        <td style="padding: 8px 0; font-weight: bold; color: #555;">User:</td>
+                                        <td style="padding: 8px 0; color: #333;">${user.name}</td>
+                                    </tr>
+                                    <tr style="border-bottom: 1px solid #ddd;">
+                                        <td style="padding: 8px 0; font-weight: bold; color: #555;">Email:</td>
+                                        <td style="padding: 8px 0; color: #333;">${user.email}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 8px 0; font-weight: bold; color: #555;">Login Time:</td>
+                                        <td style="padding: 8px 0; color: #333;">${loginTime}</td>
+                                    </tr>
+                                </table>
+                                <p style="margin: 20px 0 0; padding: 15px; background-color: #e9ecef; border-left: 4px solid #007bff; font-size: 14px; color: #666;">
+                                    This is an automated notification from the <strong>Dominion Operations Management System</strong>.
+                                </p>
+                            </div>
+                        </div>
+                    `
                 });
+            }
+
+            // Also send notification to additional monitoring email
+            await sendEmail({
+                email: 'dominionglobal2024@gmail.com',
+                name: 'Dominion Global Monitoring',
+                subject: `🔔 Branch Login Alert - ${branchName}`,
+                message: `Branch Login Notification\n\nBranch: ${branchName}${branchCode}\nUser: ${user.name}\nEmail: ${user.email}\nLogin Time: ${loginTime}\n\nThis is an automated notification from the Dominion Operations Management System.`,
+                html: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+                        <div style="background-color: #007bff; color: white; padding: 15px; border-radius: 8px 8px 0 0; text-align: center;">
+                            <h2 style="margin: 0;">🔔 Branch Login Alert</h2>
+                        </div>
+                        <div style="padding: 20px; background-color: #f9f9f9;">
+                            <h3 style="color: #333; margin-top: 0;">Branch Login Notification</h3>
+                            <table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
+                                <tr style="border-bottom: 1px solid #ddd;">
+                                    <td style="padding: 8px 0; font-weight: bold; color: #555;">Branch:</td>
+                                    <td style="padding: 8px 0; color: #333;">${branchName}${branchCode}</td>
+                                </tr>
+                                <tr style="border-bottom: 1px solid #ddd;">
+                                    <td style="padding: 8px 0; font-weight: bold; color: #555;">User:</td>
+                                    <td style="padding: 8px 0; color: #333;">${user.name}</td>
+                                </tr>
+                                <tr style="border-bottom: 1px solid #ddd;">
+                                    <td style="padding: 8px 0; font-weight: bold; color: #555;">Email:</td>
+                                    <td style="padding: 8px 0; color: #333;">${user.email}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px 0; font-weight: bold; color: #555;">Login Time:</td>
+                                    <td style="padding: 8px 0; color: #333;">${loginTime}</td>
+                                </tr>
+                            </table>
+                            <p style="margin: 20px 0 0; padding: 15px; background-color: #e9ecef; border-left: 4px solid #007bff; font-size: 14px; color: #666;">
+                                This is an automated notification from the <strong>Dominion Operations Management System</strong>.
+                            </p>
+                        </div>
+                    </div>
+                `
             });
         } catch (e) {
-            console.log('Email failed:', e.message);
+            console.log('Email notification failed:', e.message);
         }
     }
 
