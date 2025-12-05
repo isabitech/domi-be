@@ -84,7 +84,7 @@ class DashboardService {
     const currentMonth = today.getMonth() + 1;
     const currentYear = today.getFullYear();
     
-    // Get the latest disbursement roll entry for this branch (now daily-based)
+    // Get the lates disbursement roll entry for this branch (now daily-based)
     let disbursementRoll = await DisbursementRoll.findOne({
       branch: resolvedBranchId
     }).sort({ date: -1 });
