@@ -1,12 +1,17 @@
 
 /**
  * PRD Formula: Disbursement Roll
- * disbursementRoll = previousDisbursement + dailyDisbursement
- * - previousDisbursement: HO input (monthly)
- * - dailyDisbursement: sum of Cashbook2.disAmt for the month (system accumulated)
+ * disbursementRoll = previousDisbursement + dailyDisbursementAmount
+ * - previousDisbursement: HO input (baseline disbursement amount)
+ * - dailyDisbursement: sum of Cashbook2.disAmt for all days (cumulative)
+ * 
+ * disNo = previousDisbursementRollNo + dailyDisbursementNumbers  
+ * - previousDisbursementRollNo: HO input (baseline disbursement number)
+ * - dailyDisbursementNumbers: sum of Cashbook2.disNo for all days (cumulative)
+ * 
  * Permissions:
  *   - previousDisbursement: HO can edit
- *   - dailyDisbursement: system accumulated from daily ops
+ *   - currentDayDisbursementAmount: system accumulated from Cashbook2.disAmt
  *   - disbursementRoll: system calculated, viewable by both HO and BR
  */
 import mongoose from 'mongoose';
@@ -22,22 +27,30 @@ const disbursementRollSchema = new mongoose.Schema({
     required: true,
     default: Date.now
   },
+  previousDisbursement: {
+    type: Number,
+    default: 0 // HO input - baseline disbursement amount
+  },
   previousDisbursementRollNo: {
     type: Number,
-    default: 0 // HO input
+    default: 0 // HO input - baseline disbursement number
+  },
+  dailyDisbursement: {
+    type: Number,
+    default: 0 // Daily disbursement amount from Cashbook2.disAmt
   },
   currentDayDisbursementRollNo: {
     type: Number,
-    default: 0 // From daily operations, defaulted to 0 until updated
+    default: 0 // Daily disbursement number from Cashbook2.disNo
   },
   disbursementRoll: {
     type: Number,
-    default: 0 // Cumulative: prevDisbursementRollNo + allPreviousDays + currentDay
+    default: 0 // Cumulative: previousDisbursement + allPreviousDayAmounts + currentDayAmount
   },
   disNo: {
     type: Number,
     required: true,
-    default: 0
+    default: 0 // Cumulative: previousDisbursementRollNo + allPreviousDayNumbers + currentDayNumber
   },
 }, {
   timestamps: true
@@ -59,17 +72,24 @@ disbursementRollSchema.methods.calculateCumulativeDisbursement = async function(
     date: { $lt: this.date }
   }).sort({ date: 1 });
 
-  // Sum all previous days' disbursement roll numbers
-  const allPreviousDaysDisbursements = previousRolls.reduce((sum, roll) => {
+  // Sum all previous days' disbursement amounts and numbers
+  const allPreviousDayAmounts = previousRolls.reduce((sum, roll) => {
+    return sum + (roll.dailyDisbursement || 0);
+  }, 0);
+
+  const allPreviousDayNumbers = previousRolls.reduce((sum, roll) => {
     return sum + (roll.currentDayDisbursementRollNo || 0);
   }, 0);
 
-  // Calculate cumulative: HO baseline + all previous days + current day
-  this.disbursementRoll = this.previousDisbursementRollNo + allPreviousDaysDisbursements + this.currentDayDisbursementRollNo;
+  // Calculate cumulative disbursement roll (amount): HO baseline + all previous days + current day
+  this.disbursementRoll = (this.previousDisbursement || 0) + allPreviousDayAmounts + (this.dailyDisbursement || 0);
+  
+  // Calculate cumulative disbursement number: HO baseline + all previous days + current day
+  this.disNo = (this.previousDisbursementRollNo || 0) + allPreviousDayNumbers + (this.currentDayDisbursementRollNo || 0);
 };
 
 // Static method to recalculate all disbursement rolls after a specific date
-disbursementRollSchema.statics.calculateCumulativeDisbursement = async function(branchId, fromDate = null) {
+disbursementRollSchema.statics.recalculateFromDate = async function(branchId, fromDate = null) {
   const query = { branch: branchId };
   if (fromDate) {
     query.date = { $gte: fromDate };

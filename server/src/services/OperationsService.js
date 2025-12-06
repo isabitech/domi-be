@@ -130,19 +130,23 @@ class OperationsService {
       roll = new DisbursementRoll({
         branch: branchId,
         date: startOfDay,
+        previousDisbursement: branchMeta.previousDisbursement || 0,
         previousDisbursementRollNo: branchMeta.previousDisbursementRollNo || 0,
-        currentDayDisbursementRollNo: cb2.disNo || 0,
-        disNo: cb2.disNo || 0
+        dailyDisbursement: cb2.disAmt || 0,
+        currentDayDisbursementRollNo: cb2.disNo || 0
       });
     } else {
-      // Update current day's disbursement roll number
+      // Update current day's disbursement amount and number
+      roll.dailyDisbursement = cb2.disAmt || 0;
       roll.currentDayDisbursementRollNo = cb2.disNo || 0;
-      roll.disNo = cb2.disNo || 0;
+      // Update baseline values in case they changed
+      roll.previousDisbursement = branchMeta.previousDisbursement || 0;
+      roll.previousDisbursementRollNo = branchMeta.previousDisbursementRollNo || 0;
     }
     await roll.save();
     
     // Trigger cascading updates for all subsequent dates
-    await DisbursementRoll.calculateCumulativeDisbursement(branchId, startOfDay);
+    await DisbursementRoll.recalculateFromDate(branchId, startOfDay);
     
     return roll;
   }
