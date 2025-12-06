@@ -13,6 +13,7 @@ import registerRoutes from './routes/registerRoutes.js';
 import bankStatementRoutes from './routes/bankStatementRoutes.js';
 import predictionRoutes from './routes/predictionRoutes.js';
 import disbursementRollRoutes from './routes/disbursementRollRoutes.js';
+import efccRoutes from './routes/efccRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
 import reportsRoutes from './routes/reportsRoutes.js';
 import reportsCompatibilityRoutes from './routes/reportsCompatibilityRoutes.js';
@@ -136,6 +137,7 @@ app.use(`${API_PREFIX}/registers`, registerRoutes);
 app.use(`${API_PREFIX}/bank-statements`, bankStatementRoutes);
 app.use(`${API_PREFIX}/prediction`, predictionRoutes);
 app.use(`${API_PREFIX}/disbursement-roll`, disbursementRollRoutes);
+app.use(`${API_PREFIX}/efcc`, efccRoutes);
 app.use(`${API_PREFIX}/metrics`, metricsRoutes);
 app.use(`${API_PREFIX}/audit-logs`, auditLimiter, auditRoutes);
 
