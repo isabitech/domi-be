@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const dailyOperationsSchema = new mongoose.Schema({
   branch: {
@@ -63,11 +63,9 @@ const dailyOperationsSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Index for better query performance
+// Indexes for query performance and uniqueness
 dailyOperationsSchema.index({ branch: 1, date: -1 });
 dailyOperationsSchema.index({ user: 1, date: -1 });
-
-// Ensure one record per branch per day
 dailyOperationsSchema.index({ branch: 1, date: 1 }, { unique: true });
 
-module.exports = mongoose.model('DailyOperations', dailyOperationsSchema);
+export default mongoose.model('DailyOperations', dailyOperationsSchema);

@@ -1,0 +1,11 @@
+import express from 'express';
+import registerController from '../controllers/registerController.js';
+import { protect } from '../middleware/auth.js';
+import { tryCatch } from '../utils/asyncHandler.js';
+import { requirePermission } from '../utils/permissions.js';
+const router = express.Router();
+router.use(protect);
+router.get('/loan', requirePermission('registers:view'), tryCatch(registerController.getLoanRegister));
+router.get('/savings', requirePermission('registers:view'), tryCatch(registerController.getSavingsRegister));
+router.patch('/previous', requirePermission('registers:modify'), tryCatch(registerController.updatePreviousValues));
+export default router;

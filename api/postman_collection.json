@@ -1,0 +1,855 @@
+{
+  "info": {
+    "name": "Dominion Operations Management System API",
+    "_postman_id": "5d4a6c59-1c41-4b60-b965-f62bbd3ea4b7",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Source-of-truth Postman collection generated from the current controllers, services, validators, RBAC middleware and rate-limiters in server/src. Every request documents required headers, body fields, path params, and query params so BR, HO, admin and employee roles can exercise the API exactly as implemented.",
+    "version": "2025.11.27"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:5000/api/v1" },
+    { "key": "bearer_token", "value": "" },
+    { "key": "USER_ID", "value": "64d1ad8ebd54c3b8e7612345" },
+    { "key": "BRANCH_ID", "value": "64d1ad8ebd54c3b8e7699999" },
+    { "key": "DAILY_ID", "value": "64d1ad8ebd54c3b8e7600001" },
+    { "key": "CASHBOOK_ID", "value": "64d1ad8ebd54c3b8e7600002" },
+    { "key": "RESET_TOKEN", "value": "mock-reset-token" },
+    { "key": "TODAY", "value": "2025-11-27" },
+    { "key": "REPORT_START", "value": "2025-11-01" },
+    { "key": "REPORT_END", "value": "2025-11-27" },
+    { "key": "MONTH", "value": "11" },
+    { "key": "YEAR", "value": "2025" },
+    { "key": "TBO_TARGET_BRANCH", "value": "64d1ad8ebd54c3b8e7600012" }
+  ],
+  "item": [
+    {
+      "name": "System",
+      "description": "Health + platform level endpoints. Only /system-metrics requires auth (metrics:view).",
+      "item": [
+        {
+          "name": "Health Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/health",
+            "description": "Public heartbeat. Returns { success, message, data.version, data.environment }."
+          }
+        },
+        {
+          "name": "Permissions Matrix",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/permissions",
+            "description": "Public list of permissions per role (employee, BR, manager, HO, admin) directly from utils/permissions.js."
+          }
+        },
+        {
+          "name": "System Metrics",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ],
+            "url": "{{base_url}}/system-metrics",
+            "description": "Requires protect + requirePermission('metrics:view'). Returns uptimeMs, requestCount, errorCount, environment, version."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "description": "All auth routes behind authLimiter (5 req/min per IP). Input schemas live in validators/authSchemas.js.",
+      "item": [
+        {
+          "name": "Register Staff User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{bearer_token}}" }
+            ],
+            "url": "{{base_url}}/auth/register",
+            "description": "Protected; typically HO/admin only. Body: name (>=2 chars), email, password (>=8 chars), optional role enum [HO,BR,employee], optional branch (24-char hex).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Head Office Admin\",\n  \"email\": \"admin@dominion.test\",\n  \"password\": \"SecurePass123!\",\n  \"role\": \"HO\",\n  \"branch\": \"{{BRANCH_ID}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": "{{base_url}}/auth/login",
+            "description": "Body must include password plus email OR username (validators/authSchemas.login). Returns JWT + user profile.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@dominion.test\",\n  \"password\": \"SecurePass123!\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": "{{base_url}}/auth/forgot-password",
+            "description": "Sends reset link via Brevo/SMTP. Body: { email }.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@dominion.test\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "PUT",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": "{{base_url}}/auth/reset-password/{{RESET_TOKEN}}",
+            "description": "Token is provided via email. Body enforces password >= 8 chars.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"NewSecurePass456!\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Logout / revoke JWT",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ],
+            "url": "{{base_url}}/auth/logout",
+            "description": "Revokes current JWT by persisting to RevokedToken collection."
+          }
+        },
+        {
+          "name": "Me (profile + permissions)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ],
+            "url": "{{base_url}}/auth/me",
+            "description": "Protected. Returns populated user data including branch, role, permissions, lastLogin, isFirstLogin."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users (HO only)",
+      "description": "Routes guard with protect + authorizeHO. Validation: validators/userSchemas.js.",
+      "item": [
+        {
+          "name": "List Users",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ],
+            "url": "{{base_url}}/users?page=1&limit=25&role=BR&status=active",
+            "description": "Query params: page>=1, limit<=100, role enum [HO,BR,employee,manager,admin], status enum [active,inactive,suspended]."
+          }
+        },
+        {
+          "name": "Create User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{bearer_token}}" }
+            ],
+            "url": "{{base_url}}/users",
+            "description": "Body follows userSchemas.create: username (3-50 alphanum), email, password>=8, role enum, optional branchId (24hex or null).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"branch.user01\",\n  \"email\": \"branch.user01@dominion.test\",\n  \"password\": \"BranchPass123!\",\n  \"role\": \"BR\",\n  \"branchId\": \"{{BRANCH_ID}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Update User",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{bearer_token}}" }
+            ],
+            "url": "{{base_url}}/users/{{USER_ID}}",
+            "description": "Partial update allowed. Fields: username, email, role, branchId, status. All validated per userSchemas.update.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"manager\",\n  \"status\": \"active\",\n  \"branchId\": \"{{BRANCH_ID}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Delete User",
+          "request": {
+            "method": "DELETE",
+            "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ],
+            "url": "{{base_url}}/users/{{USER_ID}}",
+            "description": "Deletes (soft delete) target user after validation of 24-char id."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Branches",
+      "description": "Endpoints guarded by protect + requirePermission. Schemas: validators/branchSchemas.js.",
+      "item": [
+        {
+          "name": "List Branches",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ],
+            "url": "{{base_url}}/branches?search=lagos&page=1&limit=50",
+            "description": "Query: search (string), page>=1, limit<=100. Returns paginated Branch documents."
+          }
+        },
+        {
+          "name": "Create Branch",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{bearer_token}}" }
+            ],
+            "url": "{{base_url}}/branches",
+            "description": "Requires branch:create permission. Body must include manager identity so the API can auto-provision the branch manager user.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Lagos Central\",\n  \"code\": \"LG001\",\n  \"address\": \"23 Marina, Lagos\",\n  \"phone\": \"+234-800-111-0000\",\n  \"email\": \"lagos@dominion.test\",\n  \"managerName\": \"Ada Branch\",\n  \"managerUsername\": \"ada.lagos\",\n  \"managerEmail\": \"manager@dominion.test\",\n  \"managerPassword\": \"TempPass!23\",\n  \"operationHours\": \"08:00-17:00\",\n  \"dailyLimit\": 5000000\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Get Branch by ID",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ],
+            "url": "{{base_url}}/branches/{{BRANCH_ID}}",
+            "description": "Requires branch:view permission. Path param validated as 24-hex string."
+          }
+        },
+        {
+          "name": "Update Branch",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{bearer_token}}" }
+            ],
+            "url": "{{base_url}}/branches/{{BRANCH_ID}}",
+            "description": "Requires branch:update. Body may include name, code (len 5), contact info, manager, operationHours, dailyLimit, status enum [active,inactive].",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"+234-800-222-0000\",\n  \"status\": \"active\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Toggle Branch Status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{bearer_token}}" }
+            ],
+            "url": "{{base_url}}/branches/{{BRANCH_ID}}/toggle-status",
+            "description": "requirePermission('branch:toggle'). Flips status between active/inactive."
+          }
+        },
+        {
+          "name": "Delete Branch",
+          "request": {
+            "method": "DELETE",
+            "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ],
+            "url": "{{base_url}}/branches/{{BRANCH_ID}}",
+            "description": "Hard delete is blocked if associated users exist (controller returns 422 w/ message)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cashbook",
+      "description": "Manual ledger entries with same-day edit enforcement handled in services/CashbookService.js. Permissions: cashbook:view, cashbook:create, cashbook:approve.",
+      "item": [
+        {
+          "name": "List Entries",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ],
+            "url": "{{base_url}}/cashbook?page=1&limit=25&type=income&status=pending&branch={{BRANCH_ID}}&startDate={{TODAY}}&endDate={{TODAY}}",
+            "description": "Query filters defined in validators/cashbookSchemas.list: page, limit<=100, type[income|expense], category, status[pending|approved|rejected], branch, startDate, endDate, search."
+          }
+        },
+        {
+          "name": "Create Entry",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{bearer_token}}" }
+            ],
+            "url": "{{base_url}}/cashbook",
+            "description": "Body fields per cashbookSchemas.create. date defaults to today if omitted.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"income\",\n  \"category\": \"daily savings\",\n  \"description\": \"Client deposits\",\n  \"amount\": 125000.50,\n  \"paymentMethod\": \"cash\",\n  \"reference\": \"CBK-20251127-001\",\n  \"date\": \"{{TODAY}}\",\n  \"notes\": \"Captured by branch user\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Get Entry",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ],
+            "url": "{{base_url}}/cashbook/{{CASHBOOK_ID}}",
+            "description": "Returns Cashbook document plus derived fields (isSubmitted, submittedAt)."
+          }
+        },
+        {
+          "name": "Update Entry",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{bearer_token}}" }
+            ],
+            "url": "{{base_url}}/cashbook/{{CASHBOOK_ID}}",
+            "description": "Allowed before cutoff window closes. Body may include type, category, description, amount, paymentMethod, reference, date, notes.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 130000,\n  \"paymentMethod\": \"transfer\",\n  \"notes\": \"Adjusted before submission\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Delete Entry",
+          "request": {
+            "method": "DELETE",
+            "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ],
+            "url": "{{base_url}}/cashbook/{{CASHBOOK_ID}}",
+            "description": "Only same-day entries deletable; service enforces cutoff + role checks."
+          }
+        },
+        {
+          "name": "Update Entry Status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{bearer_token}}" }
+            ],
+            "url": "{{base_url}}/cashbook/{{CASHBOOK_ID}}/status",
+            "description": "Requires cashbook:approve. Body: status enum [approved,rejected], optional notes.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"approved\",\n  \"notes\": \"Reviewed by HO\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Summary Report",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ],
+            "url": "{{base_url}}/cashbook/reports/summary?branch={{BRANCH_ID}}&startDate={{REPORT_START}}&endDate={{REPORT_END}}",
+            "description": "Aggregates totals for branch/date range (cashbookSchemas.summary)."
+          }
+        },
+        {
+          "name": "Compatibility GET /cashbook/:branchId/:date",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ],
+            "url": "{{base_url}}/cashbook/{{BRANCH_ID}}/{{TODAY}}",
+            "description": "Backwards-compatible route that proxies to list endpoint using branch + single-day filters."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Operations",
+      "description": "Daily operations orchestrator. Middleware enforces protect + requirePermission per action plus branch role constraints. Derived records touch Cashbook1/2, Registers, BankStatements, Predictions, DisbursementRoll.",
+      "item": [
+        {
+          "name": "Get Daily Operations",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ],
+            "url": "{{base_url}}/operations/daily?date={{TODAY}}&branchId={{BRANCH_ID}}",
+            "description": "Query validated via operationsSchemas.getDaily. BR roles auto-scope to own branch if branchId omitted."
+          }
+        },
+        {
+          "name": "Create or Update Daily Ops (BR)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{bearer_token}}" }
+            ],
+            "url": "{{base_url}}/operations/daily",
+            "description": "operationsSchemas.createOrUpdate accepts same-day numeric fields (pcih, savings, loanCollection, chargesCollection, disNo, disAmt, disWithInt, savWith, domiBank, posT, predictionNo, predictionAmount, exAmt, exPurpose).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"{{TODAY}}\",\n  \"pcih\": 150000,\n  \"savings\": 250000,\n  \"loanCollection\": 180000,\n  \"chargesCollection\": 22000,\n  \"disNo\": 12,\n  \"disAmt\": 900000,\n  \"disWithInt\": 950000,\n  \"savWith\": 120000,\n  \"domiBank\": 30000,\n  \"posT\": 50000,\n  \"predictionNo\": 40,\n  \"predictionAmount\": 350000,\n  \"exAmt\": 15000,\n  \"exPurpose\": \"Generator fuel\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Submit Daily Operations",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{bearer_token}}" }
+            ],
+            "url": "{{base_url}}/operations/daily/{{DAILY_ID}}/submit",
+            "description": "Branch author must match record owner; service flags DailyOperations.isCompleted + submittedAt and marks cashbooks as submitted."
+          }
+        },
+        {
+          "name": "Update HO Fields",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{bearer_token}}" }
+            ],
+            "url": "{{base_url}}/operations/ho-fields",
+            "description": "HO/admin only. Body: branchId (required), optional date, frmHO, frmBR, tbo, tboTargetBranch, previousLoanTotal, previousSavingsTotal, previousDisbursement, loanMultiplier.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"branchId\": \"{{BRANCH_ID}}\",\n  \"date\": \"{{TODAY}}\",\n  \"frmHO\": 100000,\n  \"frmBR\": 75000,\n  \"tbo\": 50000,\n  \"tboTargetBranch\": \"{{TBO_TARGET_BRANCH}}\",\n  \"previousLoanTotal\": 5500000,\n  \"previousSavingsTotal\": 7200000,\n  \"previousDisbursement\": 1500000,\n  \"loanMultiplier\": 1.2\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "List All Daily Ops",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ],
+            "url": "{{base_url}}/operations/all?branchId={{BRANCH_ID}}",
+            "description": "Returns array + total. BR role forced to own branch regardless of query."
+          }
+        },
+        {
+          "name": "Operations History (paginated)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ],
+            "url": "{{base_url}}/operations/history?page=1&limit=20&startDate={{REPORT_START}}&endDate={{REPORT_END}}&branchId={{BRANCH_ID}}",
+            "description": "Supports page, limit, startDate, endDate, optional branchId (ignored for BR). Response includes pagination meta + range."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "description": "dashboardRoutes guard with protect + requirePermission('dashboard:branch'|'dashboard:ho'). Branch endpoint restricts to BR or admin (with branchId).",
+      "item": [
+        {
+          "name": "Branch Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ],
+            "url": "{{base_url}}/dashboard/branch?branchId={{BRANCH_ID}}&startDate={{REPORT_START}}&endDate={{REPORT_END}}",
+            "description": "BR users auto-use their branch; admins must supply branchId. Optional date range filters aggregate KPIs (savings, loans, disbursements, predictions)."
+          }
+        },
+        {
+          "name": "Head Office Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ],
+            "url": "{{base_url}}/dashboard/ho?startDate={{REPORT_START}}&endDate={{REPORT_END}}",
+            "description": "Requires HO/admin. Returns global metrics across branches with totals + trend data."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Registers",
+      "description": "Loan + savings registers along with HO-only previous totals update.",
+      "item": [
+        {
+          "name": "Loan Register (daily)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ],
+            "url": "{{base_url}}/registers/loan?date={{TODAY}}&branchId={{BRANCH_ID}}",
+            "description": "If branchId omitted: BR forced to own branch, HO/admin fallback to user.branch. Returns populated LoanRegister for date window."
+          }
+        },
+        {
+          "name": "Savings Register (daily)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ],
+            "url": "{{base_url}}/registers/savings?date={{TODAY}}&branchId={{BRANCH_ID}}",
+            "description": "Same filtering semantics as loan register; returns savings + withdrawals."
+          }
+        },
+        {
+          "name": "Update Previous Register Totals",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{bearer_token}}" }
+            ],
+            "url": "{{base_url}}/registers/previous",
+            "description": "HO/admin only. Body can include previousLoanTotal, previousSavingsTotal, loanMultiplier. Branch id is required.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"branchId\": \"{{BRANCH_ID}}\",\n  \"previousLoanTotal\": 5200000,\n  \"previousSavingsTotal\": 7100000,\n  \"loanMultiplier\": 1.15\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Bank Statements",
+      "description": "BS1 (receipts) + BS2 (withdrawals/expenses). Permissions: bankstatements:view or bankstatements:modify for TBO update.",
+      "item": [
+        {
+          "name": "Get BS1",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ],
+            "url": "{{base_url}}/bank-statements/bs1?date={{TODAY}}&branchId={{BRANCH_ID}}",
+            "description": "Returns daily BankStatement1 document populated with recHO, recBO, domi, pa values."
+          }
+        },
+        {
+          "name": "Get BS2",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ],
+            "url": "{{base_url}}/bank-statements/bs2?date={{TODAY}}&branchId={{BRANCH_ID}}",
+            "description": "Returns BankStatement2 (withd, exAmt, exPurpose, tbo, tboTargetBranch)."
+          }
+        },
+        {
+          "name": "Update TBO",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{bearer_token}}" }
+            ],
+            "url": "{{base_url}}/bank-statements/bs2/tbo",
+            "description": "HO/admin only. Body must include branchId and may include date, tbo, tboTargetBranch.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"branchId\": \"{{BRANCH_ID}}\",\n  \"date\": \"{{TODAY}}\",\n  \"tbo\": 45000,\n  \"tboTargetBranch\": \"{{TBO_TARGET_BRANCH}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Prediction",
+      "description": "Forecast for next-day performance. Branch roles can CRUD their own data; admin may supply branchId.",
+      "item": [
+        {
+          "name": "Get Prediction",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ],
+            "url": "{{base_url}}/prediction?date={{REPORT_END}}&branchId={{BRANCH_ID}}",
+            "description": "Query date refers to predictionDate (defaults to tomorrow). Returns prediction or null if missing."
+          }
+        },
+        {
+          "name": "Create / Update Prediction",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{bearer_token}}" }
+            ],
+            "url": "{{base_url}}/prediction",
+            "description": "BR/admin. Body may include predictionNo, predictionAmount, optional predictionDate (defaults to tomorrow) and branchId (admin only).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"predictionNo\": 45,\n  \"predictionAmount\": 375000,\n  \"predictionDate\": \"2025-11-28\",\n  \"branchId\": \"{{BRANCH_ID}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Disbursement Roll",
+      "description": "Monthly disbursement summaries with HO/admin override for previousDisbursement on the Branch document.",
+      "item": [
+        {
+          "name": "Get Monthly Roll",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ],
+            "url": "{{base_url}}/disbursement-roll?month={{MONTH}}&year={{YEAR}}&branchId={{BRANCH_ID}}",
+            "description": "month defaults to current month, year defaults to current year. BR roles forced to own branch."
+          }
+        },
+        {
+          "name": "Update Previous Disbursement",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{bearer_token}}" }
+            ],
+            "url": "{{base_url}}/disbursement-roll/previous",
+            "description": "HO/admin only. Body: branchId + previousDisbursement numeric value stored on Branch model.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"branchId\": \"{{BRANCH_ID}}\",\n  \"previousDisbursement\": 1250000\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reports",
+      "description": "reportsRoutes protected by protect + requirePermission. Per-route rate limits: reportsLimiter (10 req/min) + exportLimiter (5/min) for export endpoints. Query validation lives in validators/reportSchemas.js.",
+      "item": [
+        {
+          "name": "Daily Report",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ],
+            "url": "{{base_url}}/reports/daily?date={{TODAY}}&branchId={{BRANCH_ID}}",
+            "description": "Returns operations, cashbooks, calculated onlineCIH/tso for specified day."
+          }
+        },
+        {
+          "name": "Daily Report Export",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ],
+            "url": "{{base_url}}/reports/daily/export?date={{TODAY}}&branchId={{BRANCH_ID}}&format=excel",
+            "description": "Export formats: excel (default) or pdf. Subject to exportLimiter (5/min)."
+          }
+        },
+        {
+          "name": "Monthly Report",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ],
+            "url": "{{base_url}}/reports/monthly?month={{MONTH}}&year={{YEAR}}&branchId={{BRANCH_ID}}",
+            "description": "Aggregates month-to-date totals per branch plus averages for onlineCIH/TSO."
+          }
+        },
+        {
+          "name": "Monthly Report Export",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ],
+            "url": "{{base_url}}/reports/monthly/export?month={{MONTH}}&year={{YEAR}}&branchId={{BRANCH_ID}}&format=pdf",
+            "description": "Exports PDF or Excel workbook with monthlySummary rows."
+          }
+        },
+        {
+          "name": "Consolidated Report",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ],
+            "url": "{{base_url}}/reports/consolidated?startDate={{REPORT_START}}&endDate={{REPORT_END}}",
+            "description": "Requires reports:consolidated permission. startDate and endDate must be provided together."
+          }
+        },
+        {
+          "name": "Consolidated Report Export",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ],
+            "url": "{{base_url}}/reports/consolidated/export?startDate={{REPORT_START}}&endDate={{REPORT_END}}&format=excel",
+            "description": "Same payload as consolidated endpoint but streamed as Excel or PDF (format query)."
+          }
+        },
+        {
+          "name": "Custom Report",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ],
+            "url": "{{base_url}}/reports/custom?startDate={{REPORT_START}}&endDate={{REPORT_END}}&branchIds={{BRANCH_ID}},{{TBO_TARGET_BRANCH}}&reportType=summary&groupBy=branch",
+            "description": "startDate & endDate required. Optional branchIds is comma-separated, reportType enum [summary,detailed,trends], groupBy enum [day,week,month,branch]."
+          }
+        },
+        {
+          "name": "Custom Report Export",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ],
+            "url": "{{base_url}}/reports/custom/export?startDate={{REPORT_START}}&endDate={{REPORT_END}}&branchIds={{BRANCH_ID}},{{TBO_TARGET_BRANCH}}&reportType=summary&groupBy=branch&format=excel",
+            "description": "Exports the same dataset to Excel (default) or PDF."
+          }
+        },
+        {
+          "name": "Financial Report (Compatibility)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ],
+            "url": "{{base_url}}/reports/financial?startDate={{REPORT_START}}&endDate={{REPORT_END}}&branchId={{BRANCH_ID}}",
+            "description": "Legacy contract mapped to ReportsService.custom via reportsCompatibilityRoutes.js. Returns summary + details arrays shaped for old clients."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Settings (HO/Admin)",
+      "description": "settingsRoutes guard with protect + authorizeHO. Each PUT validates body via validators/settingsSchemas.js.",
+      "item": [
+        {
+          "name": "Get System Settings",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ],
+            "url": "{{base_url}}/settings/system",
+            "description": "Returns stored system config (appName, companyName, defaultCurrency, etc.)."
+          }
+        },
+        {
+          "name": "Update System Settings",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{bearer_token}}" }
+            ],
+            "url": "{{base_url}}/settings/system",
+            "description": "Body keys validated per settingsSchemas.system (defaultCurrency ENUM, sessionTimeout range 5-120, etc.).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"appName\": \"Dominion Ops\",\n  \"companyName\": \"Dominion Holdings\",\n  \"defaultCurrency\": \"NGN\",\n  \"sessionTimeoutMinutes\": 30,\n  \"auditTrailEnabled\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Get Financial Settings",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ],
+            "url": "{{base_url}}/settings/financial",
+            "description": "Returns defaultLoanInterestRate, savingsInterestRate, fees, limits, approvals toggles."
+          }
+        },
+        {
+          "name": "Update Financial Settings",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{bearer_token}}" }
+            ],
+            "url": "{{base_url}}/settings/financial",
+            "description": "Body fields validated between 0-100% where applicable (interest, penalty, processing fee).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"defaultLoanInterestRate\": 3.25,\n  \"savingsInterestRate\": 1.1,\n  \"processingFeePercentage\": 0.5,\n  \"minimumSavingsAmount\": 500,\n  \"transactionApprovalsEnabled\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Get Security Settings",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ],
+            "url": "{{base_url}}/settings/security",
+            "description": "Returns password policy, 2FA flag, login attempt limits, lockout durations, whitelist toggle."
+          }
+        },
+        {
+          "name": "Update Security Settings",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{bearer_token}}" }
+            ],
+            "url": "{{base_url}}/settings/security",
+            "description": "Body: minPasswordLength, passwordRequirements{uppercase,lowercase,numbers,specialChars}, passwordExpiryDays, twoFactorAuthEnabled, loginAttemptLimit, accountLockoutMinutes, ipWhitelistEnabled.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"minPasswordLength\": 10,\n  \"passwordRequirements\": {\n    \"uppercase\": true,\n    \"lowercase\": true,\n    \"numbers\": true,\n    \"specialChars\": true\n  },\n  \"twoFactorAuthEnabled\": true,\n  \"loginAttemptLimit\": 5,\n  \"accountLockoutMinutes\": 30\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Get Notification Settings",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ],
+            "url": "{{base_url}}/settings/notifications",
+            "description": "Returns email notification toggles, report schedule, recipient list, SMS gateway selection."
+          }
+        },
+        {
+          "name": "Update Notification Settings",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{bearer_token}}" }
+            ],
+            "url": "{{base_url}}/settings/notifications",
+            "description": "Body validated per settingsSchemas.notifications, including recipients array of valid emails and smsGateway enum [disabled,twilio,nexmo,local].",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"emailNotifications\": {\n    \"dailyReports\": true,\n    \"lowBalanceAlerts\": true,\n    \"transactionAlerts\": false,\n    \"systemMaintenance\": true\n  },\n  \"reportSchedule\": \"weekly\",\n  \"recipients\": [\n    \"opslead@dominion.test\",\n    \"compliance@dominion.test\"\n  ],\n  \"smsGateway\": \"twilio\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Metrics",
+      "description": "MetricsService aggregates Online CIH and TSO per branch for a single day. protect middleware restricts BR users to their branch.",
+      "item": [
+        {
+          "name": "Online CIH & TSO (daily)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ],
+            "url": "{{base_url}}/metrics/online-cih-tso?date={{TODAY}}",
+            "description": "Query param optional, defaults to today. Response includes metrics array, totals, raw DailyOperations list, generatedAt/by metadata."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Audit Logs (HO)",
+      "description": "auditRoutes guard with protect + authorizeHO + dedicated rate limiter (20 req/min). Query validation inside validators/auditSchemas.js.",
+      "item": [
+        {
+          "name": "List Audit Logs",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{bearer_token}}" } ],
+            "url": "{{base_url}}/audit-logs?startDate={{REPORT_START}}&endDate={{REPORT_END}}&userId={{USER_ID}}&action=daily_ops&page=1&limit=50",
+            "description": "Filters: startDate/endDate (ISO), userId (24-hex), action (string), page>=1, limit<=200. Returns paginated audit trail entries ordered desc."
+          }
+        }
+        ]
+    }
+  ]
+}

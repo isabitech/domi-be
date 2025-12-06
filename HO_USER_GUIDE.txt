@@ -1,0 +1,586 @@
+HEAD OFFICE USER GUIDE
+Dominion Operations Management System
+
+Document Information:
+Version: 1.0
+Date: November 27, 2025
+Target Audience: Head Office Users (HO Role)
+System: Dominion Operations Management System
+Classification: Administrative
+
+TABLE OF CONTENTS
+
+1. GETTING STARTED
+   - Prerequisites
+   - System Access
+
+2. SYSTEM ADMINISTRATION
+   - Authentication
+
+3. BRANCH MANAGEMENT
+   - View Branches
+   - Create Branch
+   - Update Branch
+
+4. HO FIELD MANAGEMENT
+   - Control Fields
+   - Field Explanations
+
+5. DASHBOARD & ANALYTICS
+
+6. REPORTS & MONITORING
+
+7. EMAIL NOTIFICATIONS
+
+8. DAILY WORKFLOW
+
+9. API REFERENCE
+
+10. BEST PRACTICES
+
+11. TROUBLESHOOTING
+
+=============================================================================
+
+1. GETTING STARTED
+
+Prerequisites:
+- Head Office user account credentials (email/password)
+- HO role assignment in the system
+- Administrative access to system management functions
+
+System Access:
+- Base URL: https://your-domain.com/api/v1
+- Authentication: JWT Token-based
+- Role: HO (Head Office)
+
+=============================================================================
+
+2. SYSTEM ADMINISTRATION
+
+Step 1: Authentication & Login
+
+Endpoint: POST /api/v1/auth/login
+
+Request Body:
+{
+  "email": "headoffice@email.com",
+  "password": "your_password"
+}
+
+What Happens:
+- System validates HO credentials
+- Generates JWT authentication token with HO privileges
+- Returns full system access permissions
+
+Response:
+{
+  "success": true,
+  "token": "eyJhbGciOiJIUzI1NiIs...",
+  "data": {
+    "user": {
+      "id": "user_id",
+      "name": "Head Office User",
+      "email": "headoffice@email.com",
+      "role": "HO",
+      "branch": null
+    }
+  }
+}
+
+=============================================================================
+
+3. BRANCH MANAGEMENT
+
+Step 2: Branch Administration
+
+A. View All Branches
+
+Endpoint: GET /api/v1/branches
+
+Query Parameters:
+?page=1&limit=10&search=branch_name&sort=name
+
+Response: Complete list of all branches with pagination
+
+B. Create New Branch
+
+Endpoint: POST /api/v1/branches
+
+Request Body:
+{
+  "name": "Lagos Main Branch",
+  "code": "LMB001",
+  "address": {
+    "street": "123 Commercial Avenue",
+    "city": "Lagos",
+    "state": "Lagos State",
+    "zipCode": "100001",
+    "country": "Nigeria"
+  },
+  "phone": "+234-800-123-4567",
+  "email": "lagos@dominion.com",
+  "manager": "user_id_of_branch_manager",
+  "previousLoanTotal": 0,
+  "previousSavingsTotal": 0,
+  "previousDisbursement": 0
+}
+
+C. Update Branch Information
+
+Endpoint: PUT /api/v1/branches/{branch_id}
+
+D. Activate/Deactivate Branch
+
+Endpoint: PATCH /api/v1/branches/{branch_id}/toggle-status
+
+E. Delete Branch
+
+Endpoint: DELETE /api/v1/branches/{branch_id}
+
+=============================================================================
+
+4. HO-ONLY FIELD MANAGEMENT
+
+Step 3: Control Field Updates
+
+Endpoint: PATCH /api/v1/operations/ho-fields
+
+Purpose: Update fields that branches cannot modify
+
+Request Body:
+{
+  "branchId": "branch_id",
+  "date": "2025-11-27T00:00:00.000Z",
+  
+  // Cashbook1 HO Fields
+  "frmHO": 5000.00,          // Funds from Head Office
+  "frmBR": 2000.00,          // Funds from other branches
+  
+  // Bank Statement2 HO Fields
+  "tbo": 1500.00,            // Transfer to other branches
+  "tboTargetBranch": "target_branch_id", // Where transfer went
+  
+  // Previous Totals (Monthly Updates)
+  "previousLoanTotal": 150000.00,    // Previous month's loan balance
+  "previousSavingsTotal": 85000.00,  // Previous month's savings balance
+  "previousDisbursement": 75000.00   // Previous month's disbursement total
+}
+
+HO-Controlled Fields Explained:
+
+1. FRM HO (From Head Office)
+   - Funds transferred from HO to branch
+   - Appears in Cashbook1
+   - Affects CB TOTAL 1 calculation
+
+2. FRM BR (From Other Branches)
+   - Inter-branch fund transfers received
+   - HO manages branch-to-branch coordination
+   - Updates receiving branch's Cashbook1
+
+3. T.B.O (Transfer to Other Branches)
+   - Outgoing inter-branch transfers
+   - Appears in Bank Statement2
+   - Affects BS2 total and TSO calculation
+
+4. Previous Totals
+   - Monthly opening balances for registers
+   - Set at beginning of each month
+   - Used in loan and savings register calculations
+
+=============================================================================
+
+5. DASHBOARD & ANALYTICS
+
+Step 4: Head Office Dashboard
+
+Endpoint: GET /api/v1/dashboard/ho
+
+Query Parameters:
+?startDate=2025-11-01&endDate=2025-11-27&branchId=specific_branch_id
+
+Dashboard Features:
+
+A. System-Wide Overview
+- Total active branches
+- System-wide savings and loan collections
+- Total disbursements across all branches
+- Combined TSO (Transfer to Senate Office)
+- Performance metrics and KPIs
+
+B. Branch Comparison
+- Performance ranking by branch
+- Top performing branches by metrics
+- Branches requiring attention
+- Comparative analysis charts
+
+C. Trend Analysis
+- Historical performance trends
+- Growth/decline patterns
+- Seasonal variations
+- Predictive insights
+
+D. Real-Time Monitoring
+- Live branch operations status
+- Today's submissions by branch
+- Pending actions and approvals
+- System alerts and notifications
+
+=============================================================================
+
+6. REPORTS & MONITORING
+
+Step 5: Comprehensive Reporting
+
+A. Daily Reports (All Branches)
+Endpoint: GET /api/v1/reports/daily
+Query Parameters: ?date=2025-11-27  // View all branches for specific date
+
+B. Monthly Summary Reports
+Endpoint: GET /api/v1/reports/monthly
+Query Parameters: ?month=11&year=2025&branchId=specific_branch
+
+C. HO Consolidated Report (HO Exclusive)
+Endpoint: GET /api/v1/reports/consolidated
+Query Parameters: ?startDate=2025-11-01&endDate=2025-11-27
+
+Consolidated Report Features:
+- Grand totals across all branches
+- System-wide performance metrics
+- Inter-branch transfer summaries
+- Overall loan and savings movement
+- Complete TSO calculations
+- Branch performance rankings
+
+D. Custom Reports
+Endpoint: GET /api/v1/reports/custom
+Query Parameters: ?startDate=2025-11-01&endDate=2025-11-27&branchIds=branch1,branch2&reportType=detailed&groupBy=week
+
+Custom Report Options:
+- Report Types: summary, detailed, trends
+- Grouping: day, week, month, branch
+- Filters: specific branches, date ranges, metrics
+- Export Options: JSON, Excel, PDF (future enhancement)
+
+=============================================================================
+
+7. EMAIL NOTIFICATIONS
+
+Step 6: Branch Login Monitoring
+
+Automatic Email System:
+- Receives email when any branch logs in
+- Contains branch name, user, and timestamp
+- Powered by Brevo SMTP integration
+- No configuration needed - automatic
+
+Email Content Example:
+Subject: Branch Login Notification
+From: Operations System <noreply@dominion.com>
+To: headoffice@dominion.com
+
+Branch Lagos Main (John Doe) has logged in at 11/27/2025, 8:30:45 AM
+
+System: Dominion Operations Management
+Branch Code: LMB001
+User: John Doe
+Login Time: November 27, 2025 at 8:30:45 AM
+
+=============================================================================
+
+8. DAILY WORKFLOW GUIDE
+
+Morning Routine (7:00 AM - 8:30 AM)
+
+1. Login to System
+   POST /api/v1/auth/login
+
+2. Check HO Dashboard
+   GET /api/v1/dashboard/ho
+   - Review overnight branch activities
+   - Check system alerts
+   - Identify branches needing attention
+
+3. Monitor Email Notifications
+   - Review branch login alerts from previous day
+   - Identify branches that haven't reported
+   - Follow up on missing submissions
+
+Mid-Morning (8:30 AM - 10:00 AM)
+
+4. Branch Performance Review
+   GET /api/v1/reports/daily?date=2025-11-26
+   - Review yesterday's complete submissions
+   - Analyze performance metrics
+   - Identify trends and anomalies
+
+5. Update HO Control Fields
+   PATCH /api/v1/operations/ho-fields
+   - Process inter-branch transfers
+   - Update funds from HO allocations
+   - Set monthly previous totals (if month-end)
+
+Midday Operations (10:00 AM - 2:00 PM)
+
+6. Active Monitoring
+   - Monitor real-time dashboard for current day operations
+   - Respond to branch inquiries
+   - Process urgent fund transfers
+
+7. Branch Management Tasks
+   - Create new branches if needed
+   - Update branch information
+   - Manage user accounts and permissions
+
+Afternoon Review (2:00 PM - 4:00 PM)
+
+8. Consolidated Analysis
+   GET /api/v1/reports/consolidated
+   - Generate system-wide performance reports
+   - Analyze trends across all branches
+   - Prepare management summaries
+
+End of Day (4:00 PM - 5:30 PM)
+
+9. Daily Wrap-up
+   - Final dashboard review
+   - Ensure all branches have submitted
+   - Generate daily consolidated report
+   - Plan next day activities
+
+10. Monthly Tasks (Month-end)
+    - Update all branch previous totals
+    - Generate monthly reports
+    - Process month-end reconciliations
+    - Set new month parameters
+
+=============================================================================
+
+9. API ENDPOINTS REFERENCE
+
+Authentication Endpoints:
+- POST /api/v1/auth/login - HO login
+- GET /api/v1/auth/me - Get profile
+- PATCH /api/v1/auth/change-password - Change password
+- POST /api/v1/auth/logout - Logout
+
+Branch Management Endpoints (HO Only):
+- GET /api/v1/branches - List all branches
+- POST /api/v1/branches - Create branch
+- GET /api/v1/branches/{id} - Get branch details
+- PUT /api/v1/branches/{id} - Update branch
+- DELETE /api/v1/branches/{id} - Delete branch
+- PATCH /api/v1/branches/{id}/toggle-status - Activate/deactivate
+
+Operations Management Endpoints:
+- GET /api/v1/operations/daily - View daily operations (all branches)
+- PATCH /api/v1/operations/ho-fields - Update HO fields (HO Only)
+
+Dashboard Endpoints:
+- GET /api/v1/dashboard/ho - HO dashboard (HO Only)
+
+Reports Endpoints:
+- GET /api/v1/reports/daily - Daily report (all branches)
+- GET /api/v1/reports/monthly - Monthly summary
+- GET /api/v1/reports/consolidated - HO consolidated report (HO Only)
+- GET /api/v1/reports/custom - Custom reports
+
+=============================================================================
+
+HO CONTROL FIELD SPECIFICATIONS
+
+Required Headers (All Requests After Login):
+Authorization: Bearer {jwt_token}
+Content-Type: application/json
+
+HO-Only Fields & Validation:
+- frmHO: Number >= 0 (Funds from Head Office, Increases CB TOTAL 1)
+- frmBR: Number >= 0 (Inter-branch transfers received, Increases CB TOTAL 1)
+- tbo: Number >= 0 (Transfer to other branches, Increases BS2 TOTAL)
+- tboTargetBranch: ObjectId (Valid branch ID, Destination branch, Tracking purpose)
+- previousLoanTotal: Number >= 0 (Monthly opening loan balance, Affects loan register)
+- previousSavingsTotal: Number >= 0 (Monthly opening savings balance, Affects savings register)
+- previousDisbursement: Number >= 0 (Monthly opening disbursement, Affects disbursement roll)
+
+System Impact of HO Field Updates:
+
+Cashbook1 Impact:
+- FRM HO → Increases CB TOTAL 1 → Increases Online CIH
+- FRM BR → Increases CB TOTAL 1 → Increases Online CIH
+
+Bank Statement2 Impact:
+- T.B.O → Increases BS2 TOTAL → Decreases TSO
+
+Register Impact:
+- Previous Loan Total → Sets opening balance for current loan calculations
+- Previous Savings Total → Sets opening balance for current savings calculations
+- Previous Disbursement → Sets opening balance for disbursement roll
+
+=============================================================================
+
+10. BEST PRACTICES
+
+Branch Management:
+1. Regular Monitoring: Check dashboard multiple times daily
+2. Proactive Communication: Contact branches with missing submissions
+3. Timely Updates: Update HO fields promptly for accurate calculations
+4. Monthly Reconciliation: Set previous totals at month-end accurately
+
+Data Integrity:
+1. Verification: Cross-check HO field entries with branch reports
+2. Audit Trail: Maintain records of all HO field changes
+3. Consistency: Ensure inter-branch transfers are recorded on both sides
+4. Validation: Verify calculated totals make business sense
+
+Security & Access:
+1. Secure Authentication: Use strong passwords and regular changes
+2. Role Separation: Maintain clear HO vs BR access boundaries
+3. Session Management: Logout after each session
+4. Audit Monitoring: Review system access logs regularly
+
+Reporting & Analytics:
+1. Daily Reviews: Generate and review daily consolidated reports
+2. Trend Analysis: Monitor performance trends across branches
+3. Exception Management: Follow up on anomalies and outliers
+4. Strategic Planning: Use analytics for business decision making
+
+=============================================================================
+
+11. TROUBLESHOOTING
+
+Common HO Issues & Solutions:
+
+Branch Management Issues:
+- Branch Creation Fails: Check for duplicate branch codes or names
+- User Assignment Issues: Verify user exists and has correct role
+- Branch Status Problems: Ensure proper activation/deactivation workflow
+
+HO Field Update Issues:
+- Permission Denied: Verify HO role and authentication
+- Calculation Errors: Check field values and business logic
+- Branch Not Found: Confirm branch ID is valid and active
+
+Dashboard & Reporting Issues:
+- Empty Dashboard: Check date ranges and branch filters
+- Missing Data: Verify branch submissions are complete
+- Performance Issues: Optimize date ranges for large datasets
+
+Email Notification Issues:
+- Missing Notifications: Check Brevo configuration and HO email addresses
+- Delivery Problems: Verify email server settings and spam filters
+- Duplicate Emails: Check for multiple HO user accounts
+
+System Responses & Error Handling:
+- 401 Unauthorized: Re-login to refresh authentication token
+- 403 Forbidden: Verify HO role permissions
+- 404 Not Found: Check branch IDs and endpoint URLs
+- 500 Server Error: Report to system administrator immediately
+
+Escalation Procedures:
+1. Technical Issues: Contact IT Support Team
+2. Data Discrepancies: Review with Operations Manager
+3. Branch Communication: Contact Branch Manager directly
+4. System Outages: Follow disaster recovery procedures
+
+=============================================================================
+
+HO NAVIGATION FLOW SUMMARY
+
+Login → HO Dashboard → Branch Management → HO Fields Update → Monitoring → Reports → Analysis → Logout
+  ↓         ↓              ↓                ↓               ↓           ↓         ↓         ↓
+Auth    System-wide    Create/Update     Control Fields   Real-time   Generate  Strategic  Session
+Token   Overview       Branches          & Transfers     Monitoring   Reports   Decisions   End
+
+=============================================================================
+
+MONTHLY WORKFLOW CALENDAR
+
+Week 1: Operations Monitoring
+- Daily dashboard reviews
+- Branch performance analysis
+- Real-time monitoring and support
+
+Week 2: Strategic Analysis
+- Trend analysis and reporting
+- Performance comparisons
+- System optimization
+
+Week 3: Administrative Tasks
+- Branch management updates
+- User account maintenance
+- System configuration reviews
+
+Week 4: Month-End Processing
+- Previous totals updates
+- Monthly report generation
+- Reconciliation procedures
+- Next month planning
+
+=============================================================================
+
+INTEGRATION POINTS
+
+Branch Coordination:
+- Receive branch submissions
+- Process inter-branch transfers
+- Monitor compliance and performance
+- Provide guidance and support
+
+Financial Control:
+- Manage fund allocations
+- Control inter-branch transfers
+- Set monthly opening balances
+- Monitor cash flow across system
+
+Reporting Hierarchy:
+- Generate consolidated reports
+- Provide management dashboards
+- Support strategic decision making
+- Maintain audit trails
+
+=============================================================================
+
+ADVANCED HO FEATURES
+
+System Administration:
+- Monitor system performance
+- Manage user roles and permissions
+- Configure system-wide settings
+- Maintain data integrity
+
+Business Intelligence:
+- Advanced analytics and reporting
+- Predictive modeling capabilities
+- Performance benchmarking
+- Strategic insights generation
+
+Compliance & Audit:
+- Maintain complete audit trails
+- Generate compliance reports
+- Monitor regulatory requirements
+- Support external audits
+
+=============================================================================
+
+DOCUMENT CONTROL
+
+Document ID: HO-UG-001
+Version: 1.0
+Created: November 27, 2025
+Last Updated: November 27, 2025
+Next Review: December 27, 2025
+Status: Active
+Classification: Administrative
+
+Document History:
+Version | Date       | Author           | Changes
+1.0     | 2025-11-27 | Isabi Technologies | Initial release
+
+Approval:
+Prepared by: Isabi Technologies (Digital, 2025-11-27)
+Reviewed by: Technical Lead (Pending, 2025-11-27)
+Approved by: Dominion Operations Team (Pending, 2025-11-27)
+
+© 2025 Dominion Seedstars Nig LTD. All rights reserved. 
+This document contains confidential and proprietary information.

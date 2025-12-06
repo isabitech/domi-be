@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const cashbookSchema = new mongoose.Schema({
   date: {
@@ -65,4 +65,4 @@ cashbookSchema.index({ branch: 1, date: -1 });
 cashbookSchema.index({ user: 1, date: -1 });
 cashbookSchema.index({ type: 1, status: 1 });
 
-module.exports = mongoose.model('Cashbook', cashbookSchema);
+export default mongoose.model('Cashbook', cashbookSchema);

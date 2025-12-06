@@ -1,8 +1,11 @@
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
+import User from '../models/User.js';
+import RevokedToken from '../models/RevokedToken.js';
+import { AuthError, ForbiddenError } from '../utils/errors.js';
 
 // Protect routes
-const protect = async (req, res, next) => {
+export const protect = async (req, _res, next) => {
   let token;
 
   if (
@@ -13,67 +16,62 @@ const protect = async (req, res, next) => {
   }
 
   if (!token) {
-    return res.status(401).json({
-      success: false,
-      message: 'Not authorized to access this route'
-    });
+    return next(new AuthError('Not authorized: missing token'));
   }
 
   try {
-    // Verify token
+    // Verify token signature and expiration
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    // Check blacklist (store hash for safety)
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const revoked = await RevokedToken.findOne({ tokenHash });
+    if (revoked) return next(new AuthError('Not authorized: token revoked'));
+
+    // Attach raw token for logout use
+    req.token = token;
 
     req.user = await User.findById(decoded.id).populate('branch');
 
+    // If admin, mark for bypass
+    if (req.user && req.user.role === 'admin') {
+      req.user.isAdmin = true;
+    }
     if (!req.user || !req.user.isActive) {
-      return res.status(401).json({
-        success: false,
-        message: 'User not found or inactive'
-      });
+      return next(new AuthError('User not found or inactive'));
     }
 
     next();
   } catch (error) {
-    return res.status(401).json({
-      success: false,
-      message: 'Not authorized to access this route'
-    });
+    return next(new AuthError('Not authorized: invalid or expired token'));
   }
 };
 
 // Grant access to specific roles
-const authorize = (...roles) => {
-  return (req, res, next) => {
+export const authorize = (...roles) => {
+  return (req, _res, next) => {
+    if (req.user?.isAdmin) return next();
     if (!roles.includes(req.user.role)) {
-      return res.status(403).json({
-        success: false,
-        message: `User role ${req.user.role} is not authorized to access this route`
-      });
+      return next(new ForbiddenError(`Role ${req.user.role} not authorized for this route`));
     }
     next();
   };
 };
 
 // HO only access
-const authorizeHO = (req, res, next) => {
+export const authorizeHO = (req, _res, next) => {
+  if (req.user?.isAdmin) return next();
   if (req.user.role !== 'HO') {
-    return res.status(403).json({
-      success: false,
-      message: 'Access denied. Head Office users only.'
-    });
+    return next(new ForbiddenError('Access denied: Head Office users only'));
   }
   next();
 };
 
 // BR only access
-const authorizeBR = (req, res, next) => {
+export const authorizeBR = (req, _res, next) => {
+  if (req.user?.isAdmin) return next();
   if (req.user.role !== 'BR') {
-    return res.status(403).json({
-      success: false,
-      message: 'Access denied. Branch users only.'
-    });
+    return next(new ForbiddenError('Access denied: Branch users only'));
   }
   next();
 };
-
-module.exports = { protect, authorize, authorizeHO, authorizeBR };

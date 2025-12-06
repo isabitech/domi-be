@@ -1,0 +1,407 @@
+BRANCH USER GUIDE
+Dominion Operations Management System
+
+Document Information:
+Version: 1.0
+Date: November 27, 2025
+Target Audience: Branch Users (BR Role)
+System: Dominion Operations Management System
+Status: Active
+
+TABLE OF CONTENTS
+
+1. GETTING STARTED
+   - Prerequisites
+   - System Access
+
+2. NAVIGATION FLOW
+   - Authentication
+   - Dashboard Overview
+   - Daily Operations
+
+3. DAILY WORKFLOW
+   - Morning Routine (8:00 AM - 9:00 AM)
+   - Operations Input (Throughout Day)
+   - End of Day (4:00 PM - 5:00 PM)
+
+4. API ENDPOINTS REFERENCE
+
+5. DATA INPUT SPECIFICATIONS
+
+6. BEST PRACTICES
+
+7. TROUBLESHOOTING
+
+=============================================================================
+
+1. GETTING STARTED
+
+Prerequisites:
+- Branch user account credentials (email/password)
+- Active branch assignment by Head Office
+- Network access to the system
+
+System Access:
+- Base URL: https://your-domain.com/api/v1
+- Authentication: JWT Token-based
+- Role: BR (Branch User)
+
+=============================================================================
+
+2. NAVIGATION FLOW
+
+Step 1: Authentication & Login
+
+Endpoint: POST /api/v1/auth/login
+
+Request Body:
+{
+  "email": "branch@email.com",
+  "password": "your_password"
+}
+
+What Happens:
+- System validates credentials
+- Generates JWT authentication token
+- Sends automatic email notification to Head Office
+- Returns user profile and branch information
+
+Response:
+{
+  "success": true,
+  "token": "eyJhbGciOiJIUzI1NiIs...",
+  "data": {
+    "user": {
+      "id": "user_id",
+      "name": "Branch User",
+      "email": "branch@email.com",
+      "role": "BR",
+      "branch": {
+        "id": "branch_id",
+        "name": "Main Branch",
+        "code": "BR001"
+      }
+    }
+  }
+}
+
+Step 2: Dashboard Overview
+
+Endpoint: GET /api/v1/dashboard/branch
+
+Headers Required:
+Authorization: Bearer {your_jwt_token}
+Content-Type: application/json
+
+What You See:
+- Today's operations status
+- Summary statistics (savings, loans, disbursements)
+- Current register balances
+- Trend charts and performance metrics
+- Quick action buttons
+
+Dashboard Sections:
+1. Today's Operations: Current day data entry status
+2. Summary Stats: Totals for selected date range
+3. Trend Data: Historical performance charts
+4. Current Registers: Live loan and savings balances
+
+Step 3: Check Existing Daily Data
+
+Endpoint: GET /api/v1/operations/daily
+
+Query Parameters:
+?date=2025-11-27&branchId=your_branch_id
+
+Purpose:
+- Check if today's data already exists
+- View previously entered values
+- Determine if update or create is needed
+
+Step 4: Daily Operations Input/Update
+
+Endpoint: POST /api/v1/operations/daily
+
+Complete Request Body:
+{
+  "date": "2025-11-27T00:00:00.000Z",
+  
+  // Cashbook1 Fields (Daily Financial Inputs)
+  "pcih": 1500.00,           // Previous Cash In Hand
+  "savings": 2500.00,        // Total daily client savings
+  "loanCollection": 3000.00, // Total daily loan collections  
+  "chargesCollection": 250.00, // Daily service/processing fees
+  
+  // Cashbook2 Fields (Daily Disbursements & Withdrawals)
+  "disNo": 5,                // Number of clients disbursed to
+  "disAmt": 10000.00,        // Total daily disbursement amount
+  "disWithInt": 12000.00,    // Disbursement with interest
+  "savWith": 800.00,         // Savings withdrawal
+  "domiBank": 500.00,        // Total available cash at branch
+  "posT": 300.00,            // POS transfers received
+  
+  // Prediction Fields (Next Day Projection)
+  "predictionNo": 3,         // Number of clients expected tomorrow
+  "predictionAmount": 8000.00, // Total projected disbursement
+  
+  // Expenses (Branch Daily Expenses)
+  "exAmt": 200.00,           // Branch daily expenses
+  "exPurpose": "Office supplies and maintenance" // Expense description
+}
+
+System Auto-Calculations:
+The system automatically calculates:
+- CB TOTAL 1: PCIH + Savings + Loan Collection + Charges + FRM HO + FRM BR
+- CB TOTAL 2: DIS AMT + SAV WITH + DOMI BANK + POS/T
+- Online CIH: CB TOTAL 1 - CB TOTAL 2
+- Bank Statement totals
+- Register updates
+- TSO (Transfer to Senate Office): BS1 - BS2
+
+Step 5: Submit Final Operations
+
+Endpoint: PATCH /api/v1/operations/daily/{operation_id}/submit
+
+Purpose:
+- Mark daily operations as completed
+- Lock data from further edits (until HO review)
+- Trigger final system calculations
+- Update submission timestamp
+
+Step 6: Historical Data Review
+
+A. View All Operations
+Endpoint: GET /api/v1/operations/all
+Response: Complete list of all branch operations (unpaginated)
+
+B. Paginated History
+Endpoint: GET /api/v1/operations/history
+Query Parameters: ?page=1&limit=10&startDate=2025-11-01&endDate=2025-11-27
+
+Step 7: Reports Generation
+
+A. Daily Report
+Endpoint: GET /api/v1/reports/daily
+Query Parameters: ?date=2025-11-27&branchId=your_branch_id
+
+B. Monthly Summary
+Endpoint: GET /api/v1/reports/monthly
+Query Parameters: ?month=11&year=2025&branchId=your_branch_id
+
+Step 8: Profile Management
+
+A. View Profile
+Endpoint: GET /api/v1/auth/me
+
+B. Change Password
+Endpoint: PATCH /api/v1/auth/change-password
+Request Body:
+{
+  "currentPassword": "old_password",
+  "newPassword": "new_password"
+}
+
+C. Logout
+Endpoint: POST /api/v1/auth/logout
+
+=============================================================================
+
+3. DAILY WORKFLOW
+
+Morning Routine (8:00 AM - 9:00 AM)
+
+1. Login to System
+   POST /api/v1/auth/login
+
+2. Check Dashboard
+   GET /api/v1/dashboard/branch
+
+3. Review Yesterday's Status
+   GET /api/v1/operations/daily?date=2025-11-26
+
+Operations Input (Throughout Day)
+
+4. Progressive Data Entry - Update as transactions occur:
+   POST /api/v1/operations/daily
+   
+   Enter/Update:
+   - Previous Cash in Hand (morning opening balance)
+   - Savings deposits (as clients make deposits)
+   - Loan collections (as loans are repaid)
+   - Charges collected (service fees)
+   - Disbursements made (new loans issued)
+   - Withdrawals processed (client withdrawals)
+   - POS transactions (electronic transfers)
+
+End of Day (4:00 PM - 5:00 PM)
+
+5. Final Data Review
+   - Verify all transactions entered
+   - Check calculated totals make sense
+   - Ensure no missing entries
+
+6. Input Next-Day Predictions
+   - Number of expected disbursements
+   - Projected disbursement amounts
+
+7. Add Daily Expenses
+   - Office supplies, maintenance, etc.
+   - Include expense descriptions
+
+8. Submit Operations
+   PATCH /api/v1/operations/daily/{id}/submit
+
+9. Generate Daily Report
+   GET /api/v1/reports/daily?date=2025-11-27
+
+10. Secure Logout
+    POST /api/v1/auth/logout
+
+=============================================================================
+
+4. API ENDPOINTS REFERENCE
+
+Authentication Endpoints:
+- POST /api/v1/auth/login - User login
+- GET /api/v1/auth/me - Get profile
+- PATCH /api/v1/auth/change-password - Change password
+- POST /api/v1/auth/logout - Logout
+
+Dashboard Endpoints:
+- GET /api/v1/dashboard/branch - Branch dashboard data
+
+Operations Endpoints:
+- GET /api/v1/operations/daily - Get daily operations
+- POST /api/v1/operations/daily - Create/update operations
+- PATCH /api/v1/operations/daily/{id}/submit - Submit operations
+- GET /api/v1/operations/all - Get all operations
+- GET /api/v1/operations/history - Paginated history
+
+Reports Endpoints:
+- GET /api/v1/reports/daily - Daily report
+- GET /api/v1/reports/monthly - Monthly summary
+
+=============================================================================
+
+5. DATA INPUT SPECIFICATIONS
+
+Required Headers (All Requests After Login):
+Authorization: Bearer {jwt_token}
+Content-Type: application/json
+
+Data Types & Validation:
+- date: ISO Date String (Optional, defaults to today)
+- pcih: Number >= 0 (Previous Cash in Hand)
+- savings: Number >= 0 (Daily savings deposits)
+- loanCollection: Number >= 0 (Loan payments collected)
+- chargesCollection: Number >= 0 (Service charges)
+- disNo: Number >= 0 (Number of disbursements)
+- disAmt: Number >= 0 (Disbursement amount)
+- disWithInt: Number >= 0 (Disbursement with interest)
+- savWith: Number >= 0 (Savings withdrawals)
+- domiBank: Number >= 0 (Available cash)
+- posT: Number >= 0 (POS transactions)
+- predictionNo: Number >= 0 (Expected disbursements)
+- predictionAmount: Number >= 0 (Predicted amounts)
+- exAmt: Number >= 0 (Expense amount)
+- exPurpose: String (Optional, expense description)
+
+System-Calculated Fields (Read-Only):
+- CB TOTAL 1 & 2: Cashbook totals
+- Online CIH: Cash in hand balance
+- TSO: Transfer to Senate Office
+- Bank Statement Totals
+- Register Balances
+
+=============================================================================
+
+6. BEST PRACTICES
+
+Data Entry:
+1. Progressive Entry: Enter data throughout the day, not all at once
+2. Regular Saves: Save frequently to prevent data loss
+3. Verify Totals: Review calculated totals before submission
+4. Consistent Timing: Submit at same time daily for consistency
+
+Security:
+1. Secure Passwords: Use strong, unique passwords
+2. Regular Logout: Always logout when finished
+3. Token Management: Don't share authentication tokens
+4. Network Security: Use secure networks for access
+
+Accuracy:
+1. Double-Check: Verify all amounts before submission
+2. Source Documents: Keep physical records for verification
+3. Immediate Entry: Enter transactions promptly to avoid forgetting
+4. Daily Reconciliation: Reconcile with physical cash counts
+
+Communication:
+1. HO Coordination: Coordinate with HO on special transactions
+2. Issue Reporting: Report system issues promptly
+3. Data Questions: Ask for clarification on unclear entries
+4. Status Updates: Keep HO informed of operational changes
+
+=============================================================================
+
+7. TROUBLESHOOTING
+
+Common Issues & Solutions:
+
+Login Problems:
+- Invalid Credentials: Verify email/password with HO
+- Account Disabled: Contact HO to reactivate
+- Network Issues: Check internet connection
+
+Data Entry Issues:
+- Validation Errors: Check data types and ranges
+- Permission Denied: Verify BR role assignment
+- Already Submitted: Contact HO to unlock if changes needed
+
+System Responses:
+- 500 Errors: Report to system administrator
+- 401 Unauthorized: Re-login to refresh token
+- 403 Forbidden: Check role permissions with HO
+
+Data Discrepancies:
+- Calculation Errors: Verify input values
+- Missing Transactions: Check all entries complete
+- Register Mismatches: Contact HO for previous balance corrections
+
+Support Contacts:
+- Technical Issues: IT Support Team
+- Operational Questions: Head Office
+- Account Problems: System Administrator
+- Emergency: Branch Manager
+
+=============================================================================
+
+NAVIGATION FLOW SUMMARY
+
+Login → Dashboard → Check Today's Data → Input/Update → Submit → Reports → Logout
+  ↓         ↓            ↓                ↓              ↓         ↓        ↓
+Auth     Overview    Existing Data    Transactions   Lock Data  Review   Session
+Token    Metrics     Verification     Entry/Update   & Totals   History   End
+
+=============================================================================
+
+DOCUMENT CONTROL
+
+Document ID: BR-UG-001
+Version: 1.0
+Created: November 27, 2025
+Last Updated: November 27, 2025
+Next Review: December 27, 2025
+Status: Active
+Classification: Internal Use
+
+Document History:
+Version | Date       | Author           | Changes
+1.0     | 2025-11-27 | Isabi Technologies | Initial release
+
+Approval:
+Prepared by: Isabi Technologies (Digital, 2025-11-27)
+Reviewed by: Technical Lead (Pending, 2025-11-27)
+Approved by: Dominion Operations Team (Pending, 2025-11-27)
+
+© 2025 Dominion Seedstars Nig LTD. All rights reserved. 
+This document contains confidential and proprietary information.

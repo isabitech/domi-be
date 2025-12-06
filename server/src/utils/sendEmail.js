@@ -1,33 +1,34 @@
-const nodemailer = require('nodemailer');
+import brevo from '@getbrevo/brevo';
 
 const sendEmail = async (options) => {
   try {
-    // Create transporter using Brevo SMTP
-    const transporter = nodemailer.createTransporter({
-      host: 'smtp-relay.brevo.com',
-      port: 587,
-      secure: false, // true for 465, false for other ports
-      auth: {
-        user: process.env.BREVO_SMTP_USER, // Your Brevo login email
-        pass: process.env.BREVO_SMTP_PASS, // Your Brevo SMTP key
-      },
-    });
+    // Initialize Brevo API client
+    const apiInstance = new brevo.TransactionalEmailsApi();
+    apiInstance.setApiKey(brevo.TransactionalEmailsApiApiKeys.apiKey, process.env.BREVO_API_KEY);
 
-    const message = {
-      from: `${process.env.FROM_NAME} <${process.env.FROM_EMAIL}>`,
-      to: options.email,
-      subject: options.subject,
-      text: options.message,
-      html: options.html || `<p>${options.message}</p>`,
+    const sendSmtpEmail = new brevo.SendSmtpEmail();
+    
+    // Configure email
+    sendSmtpEmail.subject = options.subject;
+    sendSmtpEmail.htmlContent = options.html || `<p>${options.message}</p>`;
+    sendSmtpEmail.textContent = options.message;
+    sendSmtpEmail.sender = {
+      name: process.env.BREVO_SENDER_NAME || process.env.FROM_NAME || 'Domi Seedstars Nig Ltd',
+      email: process.env.BREVO_SENDER_EMAIL || process.env.FROM_EMAIL || 'isabitechng@gmail.com'
     };
+    sendSmtpEmail.to = [{
+      email: options.email,
+      name: options.name || 'User'
+    }];
 
-    const info = await transporter.sendMail(message);
-    console.log('Email sent successfully: %s', info.messageId);
-    return { success: true, messageId: info.messageId };
+    // Send email
+    const result = await apiInstance.sendTransacEmail(sendSmtpEmail);
+    console.log('Email sent successfully via Brevo API:', result.messageId);
+    return { success: true, messageId: result.messageId };
   } catch (error) {
-    console.error('Email sending failed:', error);
+    console.error('Brevo email sending failed:', error);
     throw error;
   }
 };
 
-module.exports = sendEmail;
+export default sendEmail;

@@ -1,0 +1,671 @@
+openapi: 3.0.3
+info:
+  title: Dominion Seedstars Financial Management API
+  description: |
+    OpenAPI 3.0 specification generated from API_DOCUMENTATION.md.
+    Base URL: https://api.dominion-seedstars.com/v1
+  version: 1.0.0
+servers:
+  - url: https://api.dominion-seedstars.com/v1
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+              nullable: true
+            timestamp:
+              type: string
+              format: date-time
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [HO, BR]
+        branchId:
+          type: string
+          nullable: true
+        branchName:
+          type: string
+          nullable: true
+        permissions:
+          type: array
+          items:
+            type: string
+        lastLogin:
+          type: string
+          format: date-time
+        isFirstLogin:
+          type: boolean
+    Branch:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        code:
+          type: string
+        address:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+        manager:
+          type: string
+        managerEmail:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive]
+        operationHours:
+          type: string
+        dailyLimit:
+          type: integer
+          description: Amount in kobo
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    BranchCreateInput:
+      type: object
+      required: [name, code, managerName, managerEmail, managerPassword]
+      properties:
+        name:
+          type: string
+        code:
+          type: string
+          description: 5-character alphanumeric branch code
+        address:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+        managerName:
+          type: string
+        managerUsername:
+          type: string
+        managerEmail:
+          type: string
+          format: email
+        managerPassword:
+          type: string
+          format: password
+        operationHours:
+          type: string
+        dailyLimit:
+          type: integer
+          description: Amount in kobo
+    CashbookEntry:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        branchId:
+          type: string
+        branchName:
+          type: string
+        cashbook1:
+          type: object
+          properties:
+            savings:
+              type: integer
+              description: in kobo
+            loanCollection:
+              type: integer
+            charges:
+              type: integer
+            frmHO:
+              type: integer
+            frmBR:
+              type: integer
+            total:
+              type: integer
+        cashbook2:
+          type: object
+          properties:
+            disbursements:
+              type: integer
+            expenses:
+              type: integer
+            total:
+              type: integer
+        onlineCIH:
+          type: integer
+        transferToSenate:
+          type: integer
+        netCashFlow:
+          type: integer
+        submittedBy:
+          type: string
+        status:
+          type: string
+          enum: [draft, submitted, approved]
+    FinancialReportSummary:
+      type: object
+      properties:
+        totalIncome:
+          type: integer
+        totalExpenses:
+          type: integer
+        netProfit:
+          type: integer
+        totalSavings:
+          type: integer
+        totalLoans:
+          type: integer
+        totalDisbursements:
+          type: integer
+        totalCharges:
+          type: integer
+        totalTransferToSenate:
+          type: integer
+        profitMargin:
+          type: number
+        growthRate:
+          type: number
+security:
+  - bearerAuth: []
+paths:
+  /auth/login:
+    post:
+      summary: User login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Successful login
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: '#/components/schemas/User'
+                      token:
+                        type: string
+                      expiresIn:
+                        type: integer
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /auth/logout:
+    post:
+      summary: User logout
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+  /auth/me:
+    get:
+      summary: Get current user info
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/User'
+  /users:
+    get:
+      summary: Get all users (HO only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+        - in: query
+          name: limit
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Users list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+                  pagination:
+                    type: object
+    post:
+      summary: Create new user (HO only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                email:
+                  type: string
+                password:
+                  type: string
+                role:
+                  type: string
+                branchId:
+                  type: string
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/User'
+  /users/{id}:
+    put:
+      summary: Update user
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/User'
+    delete:
+      summary: Delete user
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+  /branches:
+    get:
+      summary: Get all branches
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Branch list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Branch'
+    post:
+      summary: Create branch
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BranchCreateInput'
+      responses:
+        '201':
+          description: Created branch
+  /branches/{id}:
+    put:
+      summary: Update branch
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Branch'
+      responses:
+        '200':
+          description: Updated branch
+  /cashbook/{branchId}/{date}:
+    get:
+      summary: Get cashbook for branch and date
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: branchId
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: date
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Cashbook entry
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/CashbookEntry'
+  /cashbook:
+    post:
+      summary: Create or update daily cashbook entry
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CashbookEntry'
+      responses:
+        '200':
+          description: Created/Updated
+  /reports/financial:
+    get:
+      summary: Financial report
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: startDate
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: endDate
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: branchId
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Financial report data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      summary:
+                        $ref: '#/components/schemas/FinancialReportSummary'
+                      details:
+                        type: array
+                        items:
+                          type: object
+  /export/financial-report:
+    post:
+      summary: Export financial report
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                startDate:
+                  type: string
+                  format: date
+                endDate:
+                  type: string
+                  format: date
+                branchId:
+                  type: string
+                format:
+                  type: string
+                  enum: [excel, csv, pdf]
+      responses:
+        '200':
+          description: Export created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      downloadUrl:
+                        type: string
+                      filename:
+                        type: string
+                      expiresAt:
+                        type: string
+                        format: date-time
+  /dashboard/ho:
+    get:
+      summary: Head Office dashboard
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Dashboard data
+  /dashboard/branch/{branchId}:
+    get:
+      summary: Branch dashboard
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: branchId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Branch dashboard
+  /settings/system:
+    get:
+      summary: Get system configuration
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: System settings
+    put:
+      summary: Update system configuration
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Updated configuration
+  /audit-logs:
+    get:
+      summary: Get audit logs
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: startDate
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: endDate
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Audit logs
+  /reports/transactions:
+    get:
+      summary: Transaction logs
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: startDate
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: endDate
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: branchId
+          schema:
+            type: string
+        - in: query
+          name: type
+          schema:
+            type: string
+        - in: query
+          name: status
+          schema:
+            type: string
+        - in: query
+          name: page
+          schema:
+            type: integer
+        - in: query
+          name: limit
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Transaction logs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+                  pagination:
+                    type: object
