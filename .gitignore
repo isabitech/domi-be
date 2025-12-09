@@ -72,3 +72,6 @@ temp/
 
 # Seed scripts
 server/src/seeds/
+
+# Debug and test scripts
+debug-scripts/
