@@ -126,27 +126,51 @@ class OperationsService {
     const startOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
     
     let roll = await DisbursementRoll.findOne({ branch: branchId, date: startOfDay });
-    if (!roll) {
-      roll = new DisbursementRoll({
-        branch: branchId,
-        date: startOfDay,
-        previousDisbursement: branchMeta.previousDisbursement || 0,
-        previousDisbursementRollNo: branchMeta.previousDisbursementRollNo || 0,
-        dailyDisbursement: cb2.disAmt || 0,
-        currentDayDisbursementRollNo: cb2.disNo || 0
-      });
-    } else {
-      // Update current day's disbursement amount and number
-      roll.dailyDisbursement = cb2.disAmt || 0;
-      roll.currentDayDisbursementRollNo = cb2.disNo || 0;
-      // Update baseline values in case they changed
-      roll.previousDisbursement = branchMeta.previousDisbursement || 0;
-      roll.previousDisbursementRollNo = branchMeta.previousDisbursementRollNo || 0;
-    }
-    await roll.save();
+    let needsRecalculation = false;
     
-    // Trigger cascading updates for all subsequent dates
-    await DisbursementRoll.recalculateFromDate(branchId, startOfDay);
+    if (!roll) {
+      // Only create a new roll if there's actual disbursement data or if baseline values exist
+      const hasDisbursementData = (cb2.disAmt && cb2.disAmt > 0) || (cb2.disNo && cb2.disNo > 0);
+      const hasBaselineData = (branchMeta.previousDisbursement && branchMeta.previousDisbursement > 0) || 
+                             (branchMeta.previousDisbursementRollNo && branchMeta.previousDisbursementRollNo > 0);
+      
+      if (hasDisbursementData || hasBaselineData) {
+        roll = new DisbursementRoll({
+          branch: branchId,
+          date: startOfDay,
+          previousDisbursement: branchMeta.previousDisbursement || 0,
+          previousDisbursementRollNo: branchMeta.previousDisbursementRollNo || 0,
+          dailyDisbursement: cb2.disAmt || 0,
+          currentDayDisbursementRollNo: cb2.disNo || 0
+        });
+        needsRecalculation = true;
+      }
+    } else {
+      // Check if any meaningful values have changed before updating
+      const newDailyDisbursement = cb2.disAmt || 0;
+      const newDailyRollNo = cb2.disNo || 0;
+      const newPreviousDisbursement = branchMeta.previousDisbursement || 0;
+      const newPreviousRollNo = branchMeta.previousDisbursementRollNo || 0;
+      
+      if (roll.dailyDisbursement !== newDailyDisbursement ||
+          roll.currentDayDisbursementRollNo !== newDailyRollNo ||
+          roll.previousDisbursement !== newPreviousDisbursement ||
+          roll.previousDisbursementRollNo !== newPreviousRollNo) {
+        
+        roll.dailyDisbursement = newDailyDisbursement;
+        roll.currentDayDisbursementRollNo = newDailyRollNo;
+        roll.previousDisbursement = newPreviousDisbursement;
+        roll.previousDisbursementRollNo = newPreviousRollNo;
+        needsRecalculation = true;
+      }
+    }
+    
+    // Only save and recalculate if there are meaningful changes
+    if (roll && needsRecalculation) {
+      await roll.save();
+      // Trigger cascading updates for all subsequent dates
+      await DisbursementRoll.recalculateFromDate(branchId, startOfDay);
+    }
     
     return roll;
   }
