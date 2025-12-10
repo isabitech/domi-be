@@ -503,13 +503,22 @@ class OperationsService {
 
         let disbursementRoll = null;
         if (op.branch && op.date) {
-          const month = op.date.getMonth() + 1;
-          const year = op.date.getFullYear();
+          // Get the latest daily disbursement roll record for this branch
           disbursementRoll = await DisbursementRoll.findOne({
             branch: op.branch._id,
-            month,
-            year
-          }).lean();
+            date: { $exists: true } // Ensure we get daily records, not monthly ones
+          }).sort({ date: -1 }).lean();
+
+          // If no daily record found, fallback to monthly record
+          if (!disbursementRoll) {
+            const month = op.date.getMonth() + 1;
+            const year = op.date.getFullYear();
+            disbursementRoll = await DisbursementRoll.findOne({
+              branch: op.branch._id,
+              month,
+              year
+            }).lean();
+          }
         }
 
         return {
