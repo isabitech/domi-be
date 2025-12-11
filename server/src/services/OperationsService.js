@@ -3,6 +3,7 @@ import Cashbook2 from '../models/Cashbook2.js';
 import LoanRegister from '../models/LoanRegister.js';
 import SavingsRegister from '../models/SavingsRegister.js';
 import Prediction from '../models/Prediction.js';
+import AmountNeedTomorrow from '../models/AmountNeedTomorrow.js';
 import BankStatement1 from '../models/BankStatement1.js';
 import BankStatement2 from '../models/BankStatement2.js';
 import DailyOperations from '../models/DailyOperations.js';
@@ -502,6 +503,8 @@ class OperationsService {
         };
 
         let disbursementRoll = null;
+        let amountNeedTomorrow = null;
+        
         if (op.branch && op.date) {
           // Get the latest daily disbursement roll record for this branch
           disbursementRoll = await DisbursementRoll.findOne({
@@ -519,12 +522,30 @@ class OperationsService {
               year
             }).lean();
           }
+
+          // Get the latest amount need tomorrow for this branch
+          amountNeedTomorrow = await AmountNeedTomorrow.getLatestForBranch(op.branch._id);
+          
+          // If no amount need tomorrow data, provide defaults
+          if (!amountNeedTomorrow) {
+            amountNeedTomorrow = {
+              branch: op.branch._id,
+              loanAmount: 0,
+              savingsWithdrawalAmount: 0,
+              expensesAmount: 0,
+              total: 0,
+              notes: '',
+              date: null,
+              submittedBy: null
+            };
+          }
         }
 
         return {
           ...opObj,
           predictions,
-          disbursementRoll
+          disbursementRoll,
+          amountNeedTomorrow
         };
       })
     );
