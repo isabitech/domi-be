@@ -3,6 +3,7 @@ import Cashbook2 from '../models/Cashbook2.js';
 import LoanRegister from '../models/LoanRegister.js';
 import SavingsRegister from '../models/SavingsRegister.js';
 import Prediction from '../models/Prediction.js';
+import AmountNeedTomorrow from '../models/AmountNeedTomorrow.js';
 import BankStatement1 from '../models/BankStatement1.js';
 import BankStatement2 from '../models/BankStatement2.js';
 import DailyOperations from '../models/DailyOperations.js';
@@ -124,16 +125,16 @@ class OperationsService {
   // Disbursement roll upsert (now daily-based)
   static async upsertDisbursementRoll(branchId, date, branchMeta, cb2) {
     const startOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-    
+
     let roll = await DisbursementRoll.findOne({ branch: branchId, date: startOfDay });
     let needsRecalculation = false;
-    
+
     if (!roll) {
       // Only create a new roll if there's actual disbursement data or if baseline values exist
       const hasDisbursementData = (cb2.disAmt && cb2.disAmt > 0) || (cb2.disNo && cb2.disNo > 0);
-      const hasBaselineData = (branchMeta.previousDisbursement && branchMeta.previousDisbursement > 0) || 
-                             (branchMeta.previousDisbursementRollNo && branchMeta.previousDisbursementRollNo > 0);
-      
+      const hasBaselineData = (branchMeta.previousDisbursement && branchMeta.previousDisbursement > 0) ||
+        (branchMeta.previousDisbursementRollNo && branchMeta.previousDisbursementRollNo > 0);
+
       if (hasDisbursementData || hasBaselineData) {
         roll = new DisbursementRoll({
           branch: branchId,
@@ -151,12 +152,12 @@ class OperationsService {
       const newDailyRollNo = cb2.disNo || 0;
       const newPreviousDisbursement = branchMeta.previousDisbursement || 0;
       const newPreviousRollNo = branchMeta.previousDisbursementRollNo || 0;
-      
+
       if (roll.dailyDisbursement !== newDailyDisbursement ||
-          roll.currentDayDisbursementRollNo !== newDailyRollNo ||
-          roll.previousDisbursement !== newPreviousDisbursement ||
-          roll.previousDisbursementRollNo !== newPreviousRollNo) {
-        
+        roll.currentDayDisbursementRollNo !== newDailyRollNo ||
+        roll.previousDisbursement !== newPreviousDisbursement ||
+        roll.previousDisbursementRollNo !== newPreviousRollNo) {
+
         roll.dailyDisbursement = newDailyDisbursement;
         roll.currentDayDisbursementRollNo = newDailyRollNo;
         roll.previousDisbursement = newPreviousDisbursement;
@@ -164,14 +165,14 @@ class OperationsService {
         needsRecalculation = true;
       }
     }
-    
+
     // Only save and recalculate if there are meaningful changes
     if (roll && needsRecalculation) {
       await roll.save();
       // Trigger cascading updates for all subsequent dates
       await DisbursementRoll.recalculateFromDate(branchId, startOfDay);
     }
-    
+
     return roll;
   }
 
@@ -472,6 +473,9 @@ class OperationsService {
       .populate('savingsRegister')
       .sort({ date: -1 });
 
+    // Fix over-adding by tracking unique branch/date combinations
+    const seenDisNo = new Set();
+
     const totals = operations.reduce(
       (acc, op) => {
         const cb1 = op.cashbook1 || {};
@@ -480,12 +484,21 @@ class OperationsService {
         const savings = cb1.savings || 0;
         const loanCollection = cb1.loanCollection || 0;
         const chargesCollection = cb1.chargesCollection || 0;
+
         const disNo = cb2.disNo || 0;
         const disAmt = cb2.disAmt || 0;
 
+        // Unique key per branch per day
+        const key = `${op.branch._id}-${op.date.toISOString().split('T')[0]}`;
+
         acc.totalCollections += savings + loanCollection + chargesCollection;
-        acc.totalDisbursementNumber += disNo;
-        acc.totalDisbursementAmount += disAmt;
+
+        if (!seenDisNo.has(key)) {
+          acc.totalDisbursementNumber += disNo;
+          acc.totalDisbursementAmount += disAmt;
+          seenDisNo.add(key);
+        }
+
         return acc;
       },
       { totalCollections: 0, totalDisbursementNumber: 0, totalDisbursementAmount: 0 }
@@ -502,20 +515,49 @@ class OperationsService {
         };
 
         let disbursementRoll = null;
+        let amountNeedTomorrow = null;
+
         if (op.branch && op.date) {
-          const month = op.date.getMonth() + 1;
-          const year = op.date.getFullYear();
+          // Get the latest daily disbursement roll record for this branch
           disbursementRoll = await DisbursementRoll.findOne({
             branch: op.branch._id,
-            month,
-            year
-          }).lean();
+            date: { $exists: true }
+          }).sort({ date: -1 }).lean();
+
+          // If no daily record found, fallback to monthly record
+          if (!disbursementRoll) {
+            const month = op.date.getMonth() + 1;
+            const year = op.date.getFullYear();
+            disbursementRoll = await DisbursementRoll.findOne({
+              branch: op.branch._id,
+              month,
+              year
+            }).lean();
+          }
+
+          // Get the latest amount need tomorrow for this branch
+          amountNeedTomorrow = await AmountNeedTomorrow.getLatestForBranch(op.branch._id);
+
+          // If no amount need tomorrow data, provide defaults
+          if (!amountNeedTomorrow) {
+            amountNeedTomorrow = {
+              branch: op.branch._id,
+              loanAmount: 0,
+              savingsWithdrawalAmount: 0,
+              expensesAmount: 0,
+              total: 0,
+              notes: '',
+              date: null,
+              submittedBy: null
+            };
+          }
         }
 
         return {
           ...opObj,
           predictions,
-          disbursementRoll
+          disbursementRoll,
+          amountNeedTomorrow
         };
       })
     );
@@ -526,6 +568,7 @@ class OperationsService {
       totals
     };
   }
+
 
   // History listing with pagination & filters
   static async listHistory(req) {
