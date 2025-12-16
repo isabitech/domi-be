@@ -241,7 +241,19 @@ class DashboardService {
       }
     }
     
-    summaryAccumulator.totalDisbursementRollNo = disbursementRolls.reduce((sum, roll) => sum + (roll.disNo || 0), 0);
+    // disNo on each branch roll is already a cumulative number that
+    // includes the HO baseline (previousDisbursementRollNo) plus all
+    // daily disbursement numbers for that branch. Summing disNo across
+    // branches would over-add the HO baseline multiple times.
+    // To represent the HO-wide cumulative disbursement number, use the
+    // maximum disNo value across branches instead of the sum.
+    summaryAccumulator.totalDisbursementRollNo = disbursementRolls.reduce(
+      (max, roll) => {
+        const value = roll.disNo || 0;
+        return value > max ? value : max;
+      },
+      0
+    );
 
     const consolidatedSummary = summaryAccumulator.totalOperations
       ? {

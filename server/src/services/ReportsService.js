@@ -19,98 +19,158 @@ class ReportsService {
     return { query, targetDate };
   }
 
-  // Helper: Populate daily operations
-  static async populateDailyOperations(query) {
-    return DailyOperations.find(query).populate([
-      { path: 'branch', select: 'name code' },
-      { path: 'user', select: 'name email' },
-      { path: 'cashbook1' },
-      { path: 'cashbook2' },
-      { path: 'prediction' },
-      { path: 'bankStatement1' },
-      { path: 'bankStatement2' },
-      { path: 'loanRegister' },
-      { path: 'savingsRegister' }
-    ]).sort({ branch: 1 });
-  }
+ // Helper: Populate daily operations
+static async populateDailyOperations(query) {
+  return DailyOperations.aggregate([
+    { $match: query },
 
-  // Helper: Map daily report data
-  static mapDailyReport(operations) {
-    return operations.map(op => {
-      const savings = op.cashbook1?.savings || 0;
-      const loanCollection = op.cashbook1?.loanCollection || 0;
-      const chargesCollection = op.cashbook1?.chargesCollection || 0;
-      const disNo = op.cashbook2?.disNo || 0;
-      const disAmt = op.cashbook2?.disAmt || 0;
+    // Branch
+    {
+      $lookup: {
+        from: 'branches',
+        localField: 'branch',
+        foreignField: '_id',
+        as: 'branch'
+      }
+    },
+    { $unwind: { path: '$branch', preserveNullAndEmptyArrays: true } },
 
-      return {
-        branch: { name: op.branch.name, code: op.branch.code },
-        user: { name: op.user.name, email: op.user.email },
-        cashbook1: {
-          pcih: op.cashbook1?.pcih || 0,
-          savings,
-          loanCollection,
-          chargesCollection,
-          total: op.cashbook1?.total || 0,
-          frmHO: op.cashbook1?.frmHO || 0,
-          frmBR: op.cashbook1?.frmBR || 0,
-          cbTotal1: op.cashbook1?.cbTotal1 || 0
-        },
-        cashbook2: {
-          disNo,
-          disAmt,
-          disWithInt: op.cashbook2?.disWithInt || 0,
-          savWith: op.cashbook2?.savWith || 0,
-          domiBank: op.cashbook2?.domiBank || 0,
-          posT: op.cashbook2?.posT || 0,
-          cbTotal2: op.cashbook2?.cbTotal2 || 0
-        },
-        prediction: {
-          predictionNo: op.prediction?.predictionNo || 0,
-          predictionAmount: op.prediction?.predictionAmount || 0
-        },
-        bankStatements: {
-          bs1Total: op.bankStatement1?.bs1Total || 0,
-          bs2Total: op.bankStatement2?.bs2Total || 0
-        },
-        registers: {
-          currentLoanBalance: op.loanRegister?.currentLoanBalance || 0,
-          currentSavings: op.savingsRegister?.currentSavings || 0
-        },
-        calculated: { onlineCIH: op.onlineCIH, tso: op.tso },
-        status: { isCompleted: op.isCompleted, submittedAt: op.submittedAt },
-        totals: {
-          collections: savings + loanCollection + chargesCollection,
-          disbursementNumber: disNo,
-          disbursementAmount: disAmt
-        }
-      };
-    });
-  }
+    // User
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'user',
+        foreignField: '_id',
+        as: 'user'
+      }
+    },
+    { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
 
-  static async daily(req) {
-    const { query, targetDate } = ReportsService.buildDailyQuery(req);
-    const operations = await ReportsService.populateDailyOperations(query);
-    const mapped = ReportsService.mapDailyReport(operations);
+    // Cashbooks
+    { $lookup: { from: 'cashbooks', localField: 'cashbook1', foreignField: '_id', as: 'cashbook1' } },
+    { $unwind: { path: '$cashbook1', preserveNullAndEmptyArrays: true } },
+    { $lookup: { from: 'cashbooks', localField: 'cashbook2', foreignField: '_id', as: 'cashbook2' } },
+    { $unwind: { path: '$cashbook2', preserveNullAndEmptyArrays: true } },
 
-    const grandTotals = mapped.reduce(
-      (acc, item) => {
-        acc.totalCollections += item.totals.collections || 0;
-        acc.totalDisbursementNumber += item.totals.disbursementNumber || 0;
-        acc.totalDisbursementAmount += item.totals.disbursementAmount || 0;
-        return acc;
-      },
-      { totalCollections: 0, totalDisbursementNumber: 0, totalDisbursementAmount: 0 }
-    );
+    // Prediction
+    { $lookup: { from: 'predictions', localField: 'prediction', foreignField: '_id', as: 'prediction' } },
+    { $unwind: { path: '$prediction', preserveNullAndEmptyArrays: true } },
+
+    // Bank statements
+    { $lookup: { from: 'bankstatements', localField: 'bankStatement1', foreignField: '_id', as: 'bankStatement1' } },
+    { $unwind: { path: '$bankStatement1', preserveNullAndEmptyArrays: true } },
+    { $lookup: { from: 'bankstatements', localField: 'bankStatement2', foreignField: '_id', as: 'bankStatement2' } },
+    { $unwind: { path: '$bankStatement2', preserveNullAndEmptyArrays: true } },
+
+    // Registers
+    { $lookup: { from: 'loanregisters', localField: 'loanRegister', foreignField: '_id', as: 'loanRegister' } },
+    { $unwind: { path: '$loanRegister', preserveNullAndEmptyArrays: true } },
+    { $lookup: { from: 'savingsregisters', localField: 'savingsRegister', foreignField: '_id', as: 'savingsRegister' } },
+    { $unwind: { path: '$savingsRegister', preserveNullAndEmptyArrays: true } },
+
+    // Select only required fields
+    {
+      $project: {
+        branch: { name: 1, code: 1 },
+        user: { name: 1, email: 1 },
+        cashbook1: 1,
+        cashbook2: 1,
+        prediction: 1,
+        bankStatement1: 1,
+        bankStatement2: 1,
+        loanRegister: 1,
+        savingsRegister: 1,
+        createdAt: 1,
+        onlineCIH: 1,
+        tso: 1,
+        isCompleted: 1,
+        submittedAt: 1
+      }
+    },
+
+    { $sort: { 'branch.name': 1 } }
+  ]);
+}
+
+// Helper: Map daily report data
+static mapDailyReport(operations) {
+  return operations.map(op => {
+    const savings = op.cashbook1?.savings || 0;
+    const loanCollection = op.cashbook1?.loanCollection || 0;
+    const chargesCollection = op.cashbook1?.chargesCollection || 0;
+    const disNo = op.cashbook2?.disNo || 0;
+    const disAmt = op.cashbook2?.disAmt || 0;
 
     return {
-      reportDate: targetDate,
-      generatedAt: new Date(),
-      generatedBy: req.user.name,
-      operations: mapped,
-      totals: grandTotals
+      branch: { name: op.branch?.name || '', code: op.branch?.code || '' },
+      user: { name: op.user?.name || '', email: op.user?.email || '' },
+      cashbook1: {
+        pcih: op.cashbook1?.pcih || 0,
+        savings,
+        loanCollection,
+        chargesCollection,
+        total: op.cashbook1?.total || 0,
+        frmHO: op.cashbook1?.frmHO || 0,
+        frmBR: op.cashbook1?.frmBR || 0,
+        cbTotal1: op.cashbook1?.cbTotal1 || 0
+      },
+      cashbook2: {
+        disNo,
+        disAmt,
+        disWithInt: op.cashbook2?.disWithInt || 0,
+        savWith: op.cashbook2?.savWith || 0,
+        domiBank: op.cashbook2?.domiBank || 0,
+        posT: op.cashbook2?.posT || 0,
+        cbTotal2: op.cashbook2?.cbTotal2 || 0
+      },
+      prediction: {
+        predictionNo: op.prediction?.predictionNo || 0,
+        predictionAmount: op.prediction?.predictionAmount || 0
+      },
+      bankStatements: {
+        bs1Total: op.bankStatement1?.bs1Total || 0,
+        bs2Total: op.bankStatement2?.bs2Total || 0
+      },
+      registers: {
+        currentLoanBalance: op.loanRegister?.currentLoanBalance || 0,
+        currentSavings: op.savingsRegister?.currentSavings || 0
+      },
+      calculated: { onlineCIH: op.onlineCIH || 0, tso: op.tso || 0 },
+      status: { isCompleted: op.isCompleted || false, submittedAt: op.submittedAt || null },
+      totals: {
+        collections: savings + loanCollection + chargesCollection,
+        disbursementNumber: disNo,
+        disbursementAmount: disAmt
+      }
     };
-  }
+  });
+}
+
+// Daily report generator
+static async daily(req) {
+  const { query, targetDate } = ReportsService.buildDailyQuery(req);
+  const operations = await ReportsService.populateDailyOperations(query);
+  const mapped = ReportsService.mapDailyReport(operations);
+
+  const grandTotals = mapped.reduce(
+    (acc, item) => {
+      acc.totalCollections += item.totals.collections || 0;
+      acc.totalDisbursementNumber += item.totals.disbursementNumber || 0;
+      acc.totalDisbursementAmount += item.totals.disbursementAmount || 0;
+      return acc;
+    },
+    { totalCollections: 0, totalDisbursementNumber: 0, totalDisbursementAmount: 0 }
+  );
+
+  return {
+    reportDate: targetDate,
+    generatedAt: new Date(),
+    generatedBy: req.user.name,
+    operations: mapped,
+    totals: grandTotals
+  };
+}
+
 
   static async monthly(req) {
     const { targetMonth, targetYear, query, branchId } = ReportsService.buildMonthlyQuery(req);
