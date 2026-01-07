@@ -45,47 +45,50 @@ const disbursementRollSchema = new mongoose.Schema({
   },
   disbursementRoll: {
     type: Number,
-    default: 0 // Cumulative: previousDisbursement + allPreviousDayAmounts + currentDayAmount
+    default: 0 // Cumulative: monthly baseline + all previous day amounts + current day
   },
   disNo: {
     type: Number,
     required: true,
-    default: 0 // Cumulative: previousDisbursementRollNo + allPreviousDayNumbers + currentDayNumber
+    default: 0 // Cumulative: monthly baseline + all previous day numbers + current day
   },
 }, {
   timestamps: true
 });
 
-// Calculate disbursement roll before saving (cumulative across all previous days)
+// Calculate disbursement roll before saving (cumulative across the current month)
 disbursementRollSchema.pre('save', async function(next) {
   await this.calculateCumulativeDisbursement();
   next();
 });
 
-// Calculate cumulative disbursement across all previous days
+// Calculate cumulative disbursement across all previous days in the same month
 disbursementRollSchema.methods.calculateCumulativeDisbursement = async function() {
   const DisbursementRoll = this.constructor;
+
+  // Start of the current month
+  const startOfMonth = new Date(this.date.getFullYear(), this.date.getMonth(), 1);
   
-  // Get all previous disbursement rolls for this branch, sorted by date
+  // Get all previous disbursement rolls for this branch in the current month
   const previousRolls = await DisbursementRoll.find({
     branch: this.branch,
-    date: { $lt: this.date }
+    date: { $lt: this.date, $gte: startOfMonth }
   }).sort({ date: 1 });
 
-  // Sum all previous days' disbursement amounts and numbers
-  const allPreviousDayAmounts = previousRolls.reduce((sum, roll) => {
-    return sum + (roll.dailyDisbursement || 0);
-  }, 0);
+  // Sum previous days' disbursement amounts and numbers
+  const allPreviousDayAmounts = previousRolls.reduce((sum, roll) => sum + (roll.dailyDisbursement || 0), 0);
+  const allPreviousDayNumbers = previousRolls.reduce((sum, roll) => sum + (roll.currentDayDisbursementRollNo || 0), 0);
 
-  const allPreviousDayNumbers = previousRolls.reduce((sum, roll) => {
-    return sum + (roll.currentDayDisbursementRollNo || 0);
-  }, 0);
+  // Reset baseline if this is the first roll of the month
+  const isFirstOfMonth = previousRolls.length === 0;
+  const baselineDisbursement = isFirstOfMonth ? 0 : this.previousDisbursement || 0;
+  const baselineDisNo = isFirstOfMonth ? 0 : this.previousDisbursementRollNo || 0;
 
-  // Calculate cumulative disbursement roll (amount): HO baseline + all previous days + current day
-  this.disbursementRoll = (this.previousDisbursement || 0) + allPreviousDayAmounts + (this.dailyDisbursement || 0);
-  
-  // Calculate cumulative disbursement number: HO baseline + all previous days + current day
-  this.disNo = (this.previousDisbursementRollNo || 0) + allPreviousDayNumbers + (this.currentDayDisbursementRollNo || 0);
+  // Calculate cumulative disbursement roll (amount)
+  this.disbursementRoll = baselineDisbursement + allPreviousDayAmounts + (this.dailyDisbursement || 0);
+
+  // Calculate cumulative disbursement number
+  this.disNo = baselineDisNo + allPreviousDayNumbers + (this.currentDayDisbursementRollNo || 0);
 };
 
 // Static method to recalculate all disbursement rolls after a specific date
