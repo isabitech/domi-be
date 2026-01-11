@@ -267,21 +267,7 @@ class DashboardService {
           totalOperations: 0
         };
 
-    const branchPerformance = Array.from(branchMap.values())
-      .map(item => ({
-        _id: item._id,
-        branchName: item.branchName,
-        branchCode: item.branchCode,
-        totalSavings: item.totalSavings,
-        totalLoanCollection: item.totalLoanCollection,
-        totalDisbursements: item.totalDisbursements,
-        avgOnlineCIH: item.operationDays ? item.onlineCIHSum / item.operationDays : 0,
-        totalTSO: item.totalTSO,
-        operationDays: item.operationDays,
-        lastOperation: item.lastOperation
-      }))
-      .sort((a, b) => b.totalSavings - a.totalSavings);
-
+ 
     for (const roll of disbursementRolls) {
       await roll.calculateCumulativeDisbursement();
       await roll.save({ validateBeforeSave: false });
