@@ -196,13 +196,91 @@ class DashboardService {
       if (!branchStats.lastOperation || op.date > branchStats.lastOperation) branchStats.lastOperation = op.date;
     });
 
-    // Disbursement rolls for the current month
-    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-    const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999);
-    const disbursementRolls = await DisbursementRoll.find({
-      ...(branchId ? { branch: branchId } : {}),
-      date: { $gte: monthStart, $lte: monthEnd }
-    });
+    // Aggregate disbursement roll numbers for the same branch scope and period (now from daily entries)
+    const disRollQuery = { date: dateFilter.date || { $exists: true } };
+    if (branchId) {
+      const branchObjectId = branchId instanceof mongoose.Types.ObjectId ? branchId : new mongoose.Types.ObjectId(branchId);
+      disRollQuery.branch = branchObjectId;
+    }
+    
+    // Get the latest disbursement roll entry for each branch to get current cumulative totals
+    const disbursementRolls = await DisbursementRoll.aggregate([
+      { $match: disRollQuery },
+      { $sort: { branch: 1, date: -1 } },
+      { $group: { _id: '$branch', latestEntry: { $first: '$$ROOT' } } },
+      { $replaceRoot: { newRoot: '$latestEntry' } }
+    ]);
+    
+    // Ensure each latest entry has up-to-date calculations
+    for (const rollData of disbursementRolls) {
+      const roll = await DisbursementRoll.findById(rollData._id);
+      if (roll) {
+        await roll.calculateCumulativeDisbursement();
+        await roll.save({ validateBeforeSave: false });
+      }
+    }
+    
+    // disNo on each branch roll is already a cumulative number that
+    // includes the HO baseline (previousDisbursementRollNo) plus all
+    // daily disbursement numbers for that branch. Summing disNo across
+    // branches would over-add the HO baseline multiple times.
+    // To represent the HO-wide cumulative disbursement number, use the
+    // maximum disNo value across branches instead of the sum.
+    summaryAccumulator.totalDisbursementRollNo = disbursementRolls.reduce(
+      (max, roll) => {
+        const value = roll.disNo || 0;
+        return value > max ? value : max;
+      },
+      0
+    );
+
+    const consolidatedSummary = summaryAccumulator.totalOperations
+      ? {
+          totalSavings: summaryAccumulator.totalSavings,
+          totalLoanCollection: summaryAccumulator.totalLoanCollection,
+          totalCharges: summaryAccumulator.totalCharges,
+          totalDisbursements: summaryAccumulator.totalDisbursements,
+          totalWithdrawals: summaryAccumulator.totalWithdrawals,
+          totalOnlineCIH: summaryAccumulator.totalOnlineCIH,
+          totalTSO: summaryAccumulator.totalTSO,
+          totalFrmHO: summaryAccumulator.totalFrmHO,
+          totalDisbursementRollNo: summaryAccumulator.totalDisbursementRollNo,
+          totalCollections:
+            summaryAccumulator.totalLoanCollection +
+            summaryAccumulator.totalSavings +
+            summaryAccumulator.totalCharges,
+          activeBranches: Array.from(summaryAccumulator.activeBranches),
+          totalOperations: summaryAccumulator.totalOperations
+        }
+      : {
+          totalSavings: 0,
+          totalLoanCollection: 0,
+          totalCharges: 0,
+          totalDisbursements: 0,
+          totalWithdrawals: 0,
+          totalOnlineCIH: 0,
+          totalTSO: 0,
+          totalFrmHO: 0,
+          totalDisbursementRollNo: 0,
+          totalCollections: 0,
+          activeBranches: [],
+          totalOperations: 0
+        };
+
+    const branchPerformance = Array.from(branchMap.values())
+      .map(item => ({
+        _id: item._id,
+        branchName: item.branchName,
+        branchCode: item.branchCode,
+        totalSavings: item.totalSavings,
+        totalLoanCollection: item.totalLoanCollection,
+        totalDisbursements: item.totalDisbursements,
+        avgOnlineCIH: item.operationDays ? item.onlineCIHSum / item.operationDays : 0,
+        totalTSO: item.totalTSO,
+        operationDays: item.operationDays,
+        lastOperation: item.lastOperation
+      }))
+      .sort((a, b) => b.totalSavings - a.totalSavings);
 
     for (const roll of disbursementRolls) {
       await roll.calculateCumulativeDisbursement();
