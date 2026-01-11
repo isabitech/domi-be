@@ -1,7 +1,7 @@
 import SenatePlaning from '../models/SenatePlaning.js';
 import { senatePlaningSchema } from '../validators/senatePlaningValidator.js';
 import { success, failure } from '../utils/response.js';
-import { ValidationError } from 'src/utils/errors.js';
+import { ValidationError } from '../utils/errors.js';
 // Create senate planning entry
 class senatePlaningController {
     static createSenatePlanning = async (req, res) => {
