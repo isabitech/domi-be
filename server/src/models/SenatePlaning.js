@@ -6,6 +6,7 @@ const SenatePlaningSchema = new mongoose.Schema({
 	disbursementAmount: { type: Number, required: true },
 	notes: { type: String, required: true },
 	createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+	branch: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' },
 	createdAt: { type: Date, default: Date.now }
 });
 
