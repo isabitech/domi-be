@@ -15,9 +15,9 @@ router.post(
 	validate(senatePlaningSchemas.create),
 	tryCatch(senatePlaningController.createSenatePlanning)
 );
-// Get all for branch (with optional date filtering)
+// Get all for branch for a specific date (date as path param)
 router.get(
-	'/senate-planning/branch/all',
+	'/senate-planning/branch/:date',
 	protect,
 	tryCatch(senatePlaningController.getAllForBranch)
 );
@@ -27,7 +27,13 @@ router.get(
 	protect,
 	tryCatch(senatePlaningController.getAllSenatePlanning)
 );
-
+// Update by ID
+router.put(
+	'/senate-planning/:id',
+	protect,
+	validate(senatePlaningSchemas.create),
+	tryCatch(senatePlaningController.updateSenatePlanning)
+);
 // Get by ID
 router.get(
 	'/senate-planning/:id',
