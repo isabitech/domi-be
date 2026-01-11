@@ -5,9 +5,8 @@ import LoanRegister from '../models/LoanRegister.js';
 import SavingsRegister from '../models/SavingsRegister.js';
 import { ForbiddenError, ValidationError } from '../utils/errors.js';
 
-
 class ReportsService {
-  // Helper: Build daily query
+  // Build daily query
   static buildDailyQuery(req) {
     const { date, branchId } = req.query;
     const targetDate = date ? new Date(date) : new Date();
@@ -18,8 +17,20 @@ class ReportsService {
     else if (branchId) query.branch = branchId;
     return { query, targetDate };
   }
-
-  // Helper: Populate daily operations
+  static async custom(req) {
+    const params = ReportsService.validateAndExtractCustomParams(req);
+    const query = ReportsService.buildCustomQuery(req, params);
+    const grouping = ReportsService.buildGrouping(params.groupBy);
+    const pipeline = ReportsService.buildCustomPipeline(query, grouping);
+    const results = await ReportsService.runCustomAggregation(pipeline);
+    return ReportsService.assembleCustomReport(req, params, results);
+  }
+  static async fetchDisbursementRolls(req, targetMonth, targetYear, branchId) {
+    return DisbursementRoll.find({ month: targetMonth, year: targetYear, ...(req.user.role === 'BR' ? { branch: req.user.branch } : {}), ...(branchId ? { branch: branchId } : {}) })
+      .populate('branch', 'name code')
+      .sort({ 'branch.name': 1 });
+  }
+  // Populate daily operations
   static async populateDailyOperations(query) {
     return DailyOperations.find(query).populate([
       { path: 'branch', select: 'name code' },
@@ -34,14 +45,23 @@ class ReportsService {
     ]).sort({ branch: 1 });
   }
 
-  // Helper: Map daily report data
+  // Map daily report with monthly cumulative disbursement
   static mapDailyReport(operations) {
     return operations.map(op => {
+      const startOfMonth = new Date(op.date.getFullYear(), op.date.getMonth(), 1);
+
+      // Monthly operations for this branch
+      const monthlyOps = operations.filter(d =>
+        d.branch._id.toString() === op.branch._id.toString() &&
+        d.date >= startOfMonth && d.date <= op.date
+      );
+
+      const disNo = monthlyOps.reduce((sum, d) => sum + (d.cashbook2?.disNo || 0), 0);
+      const disAmt = monthlyOps.reduce((sum, d) => sum + (d.cashbook2?.disAmt || 0), 0);
+
       const savings = op.cashbook1?.savings || 0;
       const loanCollection = op.cashbook1?.loanCollection || 0;
       const chargesCollection = op.cashbook1?.chargesCollection || 0;
-      const disNo = op.cashbook2?.disNo || 0;
-      const disAmt = op.cashbook2?.disAmt || 0;
 
       return {
         branch: { name: op.branch.name, code: op.branch.code },
@@ -88,6 +108,7 @@ class ReportsService {
     });
   }
 
+  // Daily report
   static async daily(req) {
     const { query, targetDate } = ReportsService.buildDailyQuery(req);
     const operations = await ReportsService.populateDailyOperations(query);
@@ -112,15 +133,7 @@ class ReportsService {
     };
   }
 
-  static async monthly(req) {
-    const { targetMonth, targetYear, query, branchId } = ReportsService.buildMonthlyQuery(req);
-    const monthlySummary = await ReportsService.aggregateMonthlySummary(query);
-    const disbursementRolls = await ReportsService.fetchDisbursementRolls(req, targetMonth, targetYear, branchId);
-    const registerMovement = await ReportsService.aggregateRegisterMovement(query);
-    return { month: targetMonth, year: targetYear, generatedAt: new Date(), generatedBy: req.user.name, monthlySummary, disbursementRolls, registerMovement };
-  }
-
-  // Helper: Build monthly query
+  // Build monthly query
   static buildMonthlyQuery(req) {
     const { month, year, branchId } = req.query;
     const targetMonth = month ? parseInt(month) : new Date().getMonth() + 1;
@@ -128,11 +141,51 @@ class ReportsService {
     const startOfMonth = new Date(targetYear, targetMonth - 1, 1);
     const endOfMonth = new Date(targetYear, targetMonth, 0, 23, 59, 59, 999);
     let query = { date: { $gte: startOfMonth, $lte: endOfMonth } };
-    if (req.user.role === 'BR') query.branch = req.user.branch; else if (branchId) query.branch = branchId;
+    if (req.user.role === 'BR') query.branch = req.user.branch;
+    else if (branchId) query.branch = branchId;
     return { targetMonth, targetYear, query, branchId };
   }
 
-  // Helper: Aggregate monthly summary
+  // Monthly report
+  static async monthly(req) {
+    const { targetMonth, targetYear, query, branchId } = ReportsService.buildMonthlyQuery(req);
+
+    const monthlyOps = await DailyOperations.find(query).populate([
+      { path: 'branch', select: 'name code' },
+      { path: 'cashbook2' }
+    ]);
+
+    const disbursementRolls = monthlyOps.map(op => {
+      const disAmt = monthlyOps
+        .filter(d => d.branch._id.toString() === op.branch._id.toString())
+        .reduce((sum, d) => sum + (d.cashbook2?.disAmt || 0), 0);
+
+      const disNo = monthlyOps
+        .filter(d => d.branch._id.toString() === op.branch._id.toString())
+        .reduce((sum, d) => sum + (d.cashbook2?.disNo || 0), 0);
+
+      return {
+        branch: { _id: op.branch._id, name: op.branch.name, code: op.branch.code },
+        disAmt,
+        disNo
+      };
+    });
+
+    const monthlySummary = await ReportsService.aggregateMonthlySummary(query);
+    const registerMovement = await ReportsService.aggregateRegisterMovement(query);
+
+    return {
+      month: targetMonth,
+      year: targetYear,
+      generatedAt: new Date(),
+      generatedBy: req.user.name,
+      monthlySummary,
+      disbursementRolls,
+      registerMovement
+    };
+  }
+
+  // Aggregate monthly summary
   static async aggregateMonthlySummary(query) {
     return DailyOperations.aggregate([
       { $match: query },
@@ -140,18 +193,25 @@ class ReportsService {
       { $lookup: { from: 'cashbook1s', localField: 'cashbook1', foreignField: '_id', as: 'cb1' } },
       { $lookup: { from: 'cashbook2s', localField: 'cashbook2', foreignField: '_id', as: 'cb2' } },
       { $unwind: '$branchInfo' }, { $unwind: '$cb1' }, { $unwind: '$cb2' },
-      { $group: { _id: '$branch', branchName: { $first: '$branchInfo.name' }, branchCode: { $first: '$branchInfo.code' }, totalSavings: { $sum: '$cb1.savings' }, totalLoanCollection: { $sum: '$cb1.loanCollection' }, totalCharges: { $sum: '$cb1.chargesCollection' }, totalDisbursements: { $sum: '$cb2.disAmt' }, totalWithdrawals: { $sum: '$cb2.savWith' }, totalTSO: { $sum: '$tso' }, operatingDays: { $sum: 1 }, avgOnlineCIH: { $avg: '$onlineCIH' } } }
+      {
+        $group: {
+          _id: '$branch',
+          branchName: { $first: '$branchInfo.name' },
+          branchCode: { $first: '$branchInfo.code' },
+          totalSavings: { $sum: '$cb1.savings' },
+          totalLoanCollection: { $sum: '$cb1.loanCollection' },
+          totalCharges: { $sum: '$cb1.chargesCollection' },
+          totalDisbursements: { $sum: '$cb2.disAmt' },
+          totalWithdrawals: { $sum: '$cb2.savWith' },
+          totalTSO: { $sum: '$tso' },
+          operatingDays: { $sum: 1 },
+          avgOnlineCIH: { $avg: '$onlineCIH' }
+        }
+      }
     ]);
   }
 
-  // Helper: Fetch disbursement rolls
-  static async fetchDisbursementRolls(req, targetMonth, targetYear, branchId) {
-    return DisbursementRoll.find({ month: targetMonth, year: targetYear, ...(req.user.role === 'BR' ? { branch: req.user.branch } : {}), ...(branchId ? { branch: branchId } : {}) })
-      .populate('branch', 'name code')
-      .sort({ 'branch.name': 1 });
-  }
-
-  // Helper: Aggregate register movement
+  // Aggregate register movement
   static async aggregateRegisterMovement(query) {
     return DailyOperations.aggregate([
       { $match: query },
@@ -159,22 +219,34 @@ class ReportsService {
       { $lookup: { from: 'savingsregisters', localField: 'savingsRegister', foreignField: '_id', as: 'savReg' } },
       { $lookup: { from: 'branches', localField: 'branch', foreignField: '_id', as: 'branchInfo' } },
       { $unwind: '$branchInfo' }, { $unwind: '$loanReg' }, { $unwind: '$savReg' },
-      { $group: { _id: '$branch', branchName: { $first: '$branchInfo.name' }, openingLoanBalance: { $first: '$loanReg.previousLoanTotal' }, closingLoanBalance: { $last: '$loanReg.currentLoanBalance' }, openingSavingsBalance: { $first: '$savReg.previousSavingsTotal' }, closingSavingsBalance: { $last: '$savReg.currentSavings' } } }
+      {
+        $group: {
+          _id: '$branch',
+          branchName: { $first: '$branchInfo.name' },
+          openingLoanBalance: { $first: '$loanReg.previousLoanTotal' },
+          closingLoanBalance: { $last: '$loanReg.currentLoanBalance' },
+          openingSavingsBalance: { $first: '$savReg.previousSavingsTotal' },
+          closingSavingsBalance: { $last: '$savReg.currentSavings' }
+        }
+      }
     ]);
   }
 
+  // Consolidated report
   static async consolidated(req) {
     if (req.user.role !== 'HO' && req.user.role !== 'admin') {
       throw new ForbiddenError('Access denied. Head Office users only.');
     }
+
     const { dateFilter, periodStart, periodEnd, scope } = ReportsService.buildConsolidatedDateFilter(req);
     const operations = await ReportsService.fetchConsolidatedOperations(dateFilter);
     const { consolidatedData, grandTotals } = ReportsService.buildConsolidatedSummaries(operations);
     const currentRegisters = await ReportsService.fetchCurrentRegisters();
+
     return ReportsService.assembleConsolidatedReport(req, periodStart, periodEnd, consolidatedData, grandTotals, currentRegisters, scope);
   }
 
-  // Helper: Build consolidated date filter
+  // Build consolidated date filter
   static buildConsolidatedDateFilter(req) {
     const { startDate, endDate, scope } = req.query;
     if ((scope && scope.toLowerCase() === 'all') || req.query.allDates === 'true') {
@@ -198,7 +270,7 @@ class ReportsService {
     return { dateFilter: { date: { $gte: periodStart, $lte: periodEnd } }, periodStart, periodEnd, scope: 'currentMonth' };
   }
 
-  // Helper: Fetch consolidated operations with relations
+  // Fetch consolidated operations
   static async fetchConsolidatedOperations(dateFilter) {
     const match = dateFilter?.date ? dateFilter : {};
     return DailyOperations.find(match)
@@ -210,7 +282,7 @@ class ReportsService {
       .lean();
   }
 
-  // Helper: Build consolidated summaries from populated operations
+  // Build consolidated summaries
   static buildConsolidatedSummaries(operations) {
     const branchMap = new Map();
     const totals = {
@@ -313,17 +385,15 @@ class ReportsService {
     };
   }
 
-  // Helper: Fetch latest register balances per branch
+  // Fetch latest registers per branch
   static async fetchCurrentRegisters() {
     const branches = await Branch.find().lean();
     const results = [];
 
     for (const branch of branches) {
-      // Get the most recent registers and ensure they have up-to-date calculations
       let latestLoanRegister = await LoanRegister.findOne({ branch: branch._id }).sort({ date: -1 });
       let latestSavingsRegister = await SavingsRegister.findOne({ branch: branch._id }).sort({ date: -1 });
 
-      // Recalculate to ensure latest cumulative values
       if (latestLoanRegister) {
         await latestLoanRegister.calculateCumulativeLoanBalance();
         await latestLoanRegister.save({ validateBeforeSave: false });
@@ -346,7 +416,7 @@ class ReportsService {
     return results;
   }
 
-  // Helper: Assemble consolidated response
+  // Assemble consolidated report
   static assembleConsolidatedReport(req, periodStart, periodEnd, consolidatedData, grandTotals, currentRegisters, scope = 'range') {
     return {
       period: { startDate: periodStart, endDate: periodEnd, scope },
@@ -355,75 +425,6 @@ class ReportsService {
       consolidatedData,
       grandTotals,
       currentRegisters
-    };
-  }
-
-  static async custom(req) {
-    const params = ReportsService.validateAndExtractCustomParams(req);
-    const query = ReportsService.buildCustomQuery(req, params);
-    const grouping = ReportsService.buildGrouping(params.groupBy);
-    const pipeline = ReportsService.buildCustomPipeline(query, grouping);
-    const results = await ReportsService.runCustomAggregation(pipeline);
-    return ReportsService.assembleCustomReport(req, params, results);
-  }
-
-  // Helper: Validate and normalize custom report params
-  static validateAndExtractCustomParams(req) {
-    const { startDate, endDate, branchIds, reportType, groupBy } = req.query;
-    if (!startDate || !endDate) throw new ValidationError('Start date and end date are required');
-    return {
-      startDate: new Date(startDate),
-      endDate: new Date(endDate),
-      branchIds: branchIds ? (Array.isArray(branchIds) ? branchIds : branchIds.split(',')) : null,
-      reportType: reportType || 'summary',
-      groupBy: groupBy || 'branch'
-    };
-  }
-
-  // Helper: Build custom query
-  static buildCustomQuery(req, params) {
-    const base = { date: { $gte: params.startDate, $lte: params.endDate } };
-    if (req.user.role === 'BR') return { ...base, branch: req.user.branch };
-    if (params.branchIds) return { ...base, branch: { $in: params.branchIds } };
-    return base;
-  }
-
-  // Helper: Build grouping object
-  static buildGrouping(groupBy) {
-    if (groupBy === 'day') return { year: { $year: '$date' }, month: { $month: '$date' }, day: { $dayOfMonth: '$date' }, branch: '$branch' };
-    if (groupBy === 'week') return { year: { $year: '$date' }, week: { $week: '$date' }, branch: '$branch' };
-    if (groupBy === 'month') return { year: { $year: '$date' }, month: { $month: '$date' }, branch: '$branch' };
-    return { branch: '$branch' };
-  }
-
-  // Helper: Build custom aggregation pipeline
-  static buildCustomPipeline(query, grouping) {
-    const pipeline = [
-      { $match: query },
-      { $lookup: { from: 'branches', localField: 'branch', foreignField: '_id', as: 'branchInfo' } },
-      { $lookup: { from: 'cashbook1s', localField: 'cashbook1', foreignField: '_id', as: 'cb1' } },
-      { $lookup: { from: 'cashbook2s', localField: 'cashbook2', foreignField: '_id', as: 'cb2' } },
-      { $unwind: '$branchInfo' }, { $unwind: '$cb1' }, { $unwind: '$cb2' },
-      { $group: { _id: grouping, branchName: { $first: '$branchInfo.name' }, branchCode: { $first: '$branchInfo.code' }, period: { $first: '$date' }, totalSavings: { $sum: '$cb1.savings' }, totalLoanCollection: { $sum: '$cb1.loanCollection' }, totalCharges: { $sum: '$cb1.chargesCollection' }, totalDisbursements: { $sum: '$cb2.disAmt' }, totalWithdrawals: { $sum: '$cb2.savWith' }, avgOnlineCIH: { $avg: '$onlineCIH' }, totalTSO: { $sum: '$tso' }, operationCount: { $sum: 1 } } },
-      { $sort: { '_id.year': -1, '_id.month': -1, '_id.day': -1 } }
-    ];
-    return pipeline;
-  }
-
-  // Helper: Run custom aggregation
-  static async runCustomAggregation(pipeline) {
-    return DailyOperations.aggregate(pipeline);
-  }
-
-  // Helper: Assemble custom report response
-  static assembleCustomReport(req, params, results) {
-    return {
-      period: { startDate: params.startDate, endDate: params.endDate },
-      reportType: params.reportType,
-      groupBy: params.groupBy,
-      generatedAt: new Date(),
-      generatedBy: req.user.name,
-      results
     };
   }
 }

@@ -11,6 +11,10 @@ class EFCCController {
     success(res, { efcc: record }, 'Today\'s EFCC record fetched');
   });
 
+  getDateRecord = asyncHandler(async (req, res) => {
+    const record = await EFCCService.getDate(req);
+    success(res, { efcc: record }, 'EFCC record for the date fetched');
+  });
   // @desc    Create or update today's EFCC record
   // @route   POST /api/efcc/today
   // @access  Private (BR only)

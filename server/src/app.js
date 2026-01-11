@@ -22,6 +22,7 @@ import usersRoutes from './routes/usersRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
 import auditRoutes from './routes/auditRoutes.js';
 import metricsRoutes from './routes/metricsRoutes.js';
+import senatePlaningRoutes from './routes/SenatePlaning.js';
 import { listPermissions, requirePermission } from './utils/permissions.js';
 import errorHandler from './middleware/errorHandler.js';
 import { success, failure } from './utils/response.js';
@@ -142,6 +143,7 @@ app.use(`${API_PREFIX}/disbursement-roll`, disbursementRollRoutes);
 app.use(`${API_PREFIX}/efcc`, efccRoutes);
 app.use(`${API_PREFIX}/metrics`, metricsRoutes);
 app.use(`${API_PREFIX}/audit-logs`, auditLimiter, auditRoutes);
+app.use(`${API_PREFIX}/senate-planning`, senatePlaningRoutes);
 
 // Health check
 app.get(`${API_PREFIX}/health`, (req, res) => {
