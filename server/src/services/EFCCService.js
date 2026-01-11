@@ -7,7 +7,7 @@ class EFCCService {
   // Get EFCC record for today (BR view)
   static async getToday(req) {
     const branchId = req.user.role === 'BR' ? req.user.branch : req.query.branchId;
-    
+
     if (!branchId) {
       throw new ValidationError('Branch ID is required');
     }
@@ -15,17 +15,17 @@ class EFCCService {
     const today = new Date();
     const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
-    
+
     let record = await EFCC.findOne({
       branch: branchId,
       date: { $gte: startOfDay, $lt: endOfDay }
     }).populate('branch', 'name code');
-    
+
     // If no record exists for today, create a default one
     if (!record) {
       // Get the latest previous record to determine previousAmountOwing
       const latestRecord = await EFCC.getLatestForBranch(branchId);
-      
+
       record = new EFCC({
         branch: branchId,
         date: startOfDay,
@@ -33,11 +33,46 @@ class EFCCService {
         todayRemittance: 0,
         amtRemittingNow: 0
       });
-      
+
       await record.save();
       await record.populate('branch', 'name code');
     }
-    
+
+    return record;
+  }
+  static async getDate(req) {
+    const branchId = req.user.role === 'BR' ? req.user.branch : req.query.branchId;
+
+    if (!branchId) {
+      throw new ValidationError('Branch ID is required');
+    }
+
+    const date = new Date(req.query.date);
+    const startOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const endOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
+
+    let record = await EFCC.findOne({
+      branch: branchId,
+      date: { $gte: startOfDay, $lt: endOfDay }
+    }).populate('branch', 'name code');
+
+    // If no record exists for today, create a default one
+    if (!record) {
+      // Get the latest previous record to determine previousAmountOwing
+      const latestRecord = await EFCC.getLatestForBranch(branchId);
+
+      record = new EFCC({
+        branch: branchId,
+        date: startOfDay,
+        previousAmountOwing: latestRecord ? latestRecord.currentAmountOwing : 0,
+        todayRemittance: 0,
+        amtRemittingNow: 0
+      });
+
+      await record.save();
+      await record.populate('branch', 'name code');
+    }
+
     return record;
   }
 
@@ -73,7 +108,7 @@ class EFCCService {
 
     const record = await EFCC.upsertToday(branchId, data, req.user._id);
     await record.populate('branch', 'name code');
-    
+
     // Send email notification to HO users and global management
     try {
       await NotificationService.sendEFCCUpdateNotification(record, req.user._id);
@@ -81,7 +116,7 @@ class EFCCService {
       console.error('Failed to send EFCC update email notification:', emailError);
       // Continue execution even if email fails
     }
-    
+
     return record;
   }
 
@@ -95,12 +130,12 @@ class EFCCService {
     const today = new Date();
     const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
-    
+
     const record = await EFCC.findOne({
       branch: branchId,
       date: { $gte: startOfDay, $lt: endOfDay }
     }).populate('branch', 'name code');
-    
+
     if (!record) {
       throw new NotFoundError('No EFCC record found for today');
     }
@@ -110,7 +145,7 @@ class EFCCService {
     }
 
     await record.submit(req.user._id);
-    
+
     // Send submission notification to HO users and global management
     try {
       await NotificationService.sendEFCCSubmissionNotification(record, req.user._id);
@@ -118,7 +153,7 @@ class EFCCService {
       console.error('Failed to send EFCC submission email notification:', emailError);
       // Continue execution even if email fails
     }
-    
+
     return record;
   }
 
@@ -132,7 +167,7 @@ class EFCCService {
     const { startDate, endDate, limit = 30, page = 1 } = req.query;
 
     const query = { branch: branchId };
-    
+
     if (startDate || endDate) {
       query.date = {};
       if (startDate) query.date.$gte = new Date(startDate);
@@ -140,7 +175,7 @@ class EFCCService {
     }
 
     const skip = (page - 1) * limit;
-    
+
     const [records, total, branch] = await Promise.all([
       EFCC.find(query)
         .populate('branch', 'name code')
@@ -181,22 +216,22 @@ class EFCCService {
 
     // Get all branches
     const branches = await Branch.find({}, 'name code').sort({ name: 1 });
-    
+
     const summary = [];
-    
+
     for (const branch of branches) {
       // Get today's record for this branch
       let todayRecord = await EFCC.findOne({
         branch: branch._id,
         date: { $gte: startOfDay, $lt: endOfDay }
       }).populate('submittedBy', 'username');
-      
+
       // If no record for today, get the latest record to determine current owing
       let latestRecord = null;
       if (!todayRecord) {
         latestRecord = await EFCC.getLatestForBranch(branch._id);
       }
-      
+
       const branchSummary = {
         branch: {
           _id: branch._id,
@@ -212,10 +247,10 @@ class EFCCService {
         isSubmitted: todayRecord?.isSubmitted || false,
         hasRecord: !!todayRecord
       };
-      
+
       summary.push(branchSummary);
     }
-    
+
     // Calculate totals
     const totals = summary.reduce((acc, branch) => {
       acc.totalPreviousOwing += branch.previousAmountOwing;
@@ -257,7 +292,7 @@ class EFCCService {
     }
 
     const query = { branch: branchId };
-    
+
     if (startDate || endDate) {
       query.date = {};
       if (startDate) query.date.$gte = new Date(startDate);
@@ -265,7 +300,7 @@ class EFCCService {
     }
 
     const skip = (page - 1) * limit;
-    
+
     const [records, total] = await Promise.all([
       EFCC.find(query)
         .populate('branch', 'name code')
