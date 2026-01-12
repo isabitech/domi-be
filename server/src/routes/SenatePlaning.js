@@ -10,33 +10,33 @@ const router = express.Router();
 
 // Create
 router.post(
-	'/senate-planning',
+	'/',
 	protect,
 	validate(senatePlaningSchemas.create),
 	tryCatch(senatePlaningController.createSenatePlanning)
 );
 // Get all for branch for a specific date (date as path param)
 router.get(
-	'/senate-planning/branch/:date',
+	'/branch/:date',
 	protect,
 	tryCatch(senatePlaningController.getAllForBranch)
 );
 // Get all
 router.get(
-	'/senate-planning',
+	'/',
 	protect,
 	tryCatch(senatePlaningController.getAllSenatePlanning)
 );
 // Update by ID
 router.put(
-	'/senate-planning/:id',
+	'/:id',
 	protect,
 	validate(senatePlaningSchemas.create),
 	tryCatch(senatePlaningController.updateSenatePlanning)
 );
 // Get by ID
 router.get(
-	'/senate-planning/:id',
+	'/:id',
 	protect,
 	tryCatch(senatePlaningController.getSenatePlanningById)
 );
