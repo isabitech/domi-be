@@ -5,7 +5,7 @@ import { ValidationError } from '../utils/errors.js';
 // Create senate planning entry
 class senatePlaningController {
     // Update a SenatePlaning record by ID
-    static updateSenatePlanning = async (req, res) => {
+     updateSenatePlanning = async (req, res) => {
         const { id } = req.params;
         const { error, value } = senatePlaningSchema.validate(req.body);
         if (error) throw new ValidationError('Validation error', error.details[0].message);
@@ -21,7 +21,7 @@ class senatePlaningController {
     }
     // Get all SenatePlaning records filtered by date range (all branches)
 
-    static createSenatePlanning = async (req, res) => {
+    createSenatePlanning = async (req, res) => {
         const { error, value } = senatePlaningSchema.validate(req.body);
         if (error) throw new ValidationError('Validation error', error.details[0].message);
         const planning = new SenatePlaning({
@@ -34,8 +34,8 @@ class senatePlaningController {
     }
 
     // Get all SenatePlaning records, with optional date filtering
-    static getAllSenatePlanning = async (req, res) => {
-        const { start, end } = req.query;
+    getAllSenatePlanning = async (req, res) => {
+       const { start, end } = req.query;
         const filter = {};
         if (start || end) {
             filter.createdAt = {};
@@ -47,7 +47,7 @@ class senatePlaningController {
     }
 
     // Get all SenatePlaning records for a branch for a specific date (date as path param)
-    static getAllForBranch = async (req, res) => {
+     getAllForBranch = async (req, res) => {
         const user = req.user;
         const branchId = user?.branch;
         const { date } = req.params;
@@ -62,7 +62,7 @@ class senatePlaningController {
         return success(res, plannings, 'Senate planning records for branch fetched');
     }
     // Get a single SenatePlaning by ID
-    static getSenatePlanningById = async (req, res) => {
+    getSenatePlanningById = async (req, res) => {
         const { id } = req.params;
         const planning = await SenatePlaning.findById(id).populate('createdBy', 'name email');
         if (!planning) {
