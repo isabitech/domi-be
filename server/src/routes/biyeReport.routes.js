@@ -1,7 +1,7 @@
 import express from 'express';
 import BiyeReportController from '../controllers/biyeReport.controller.js';
 import { protect, authorizeHO, authorizeBR } from '../middleware/auth.js';
-import { tryCatch } from 'src/utils/asyncHandler.js';
+import { tryCatch } from '../utils/asyncHandler.js';
 
 const router = express.Router();
 
