@@ -1,0 +1,77 @@
+import BiyeReport from '../models/biyeReport.model.js';
+import { ValidationError, DuplicateError } from '../utils/errors.js';
+
+class BiyeReportService {
+    /**
+     * Create a new BIYE report
+     * @param {Object} data - Report data
+     * @returns {Promise<Object>} Created report
+     */
+    async createBiyeReport(data) {
+        const {
+            amountToClients,
+            ajoWithdrawalAmount,
+            totalClients,
+            ldSolvedToday,
+            clientsThatPaidToday
+        } = data;
+
+        // Business Logic Validation: ldSolvedToday + clientsThatPaidToday <= totalClients
+        if (ldSolvedToday + clientsThatPaidToday > totalClients) {
+            throw new ValidationError('The sum of LD solved today and clients that paid today cannot exceed total clients');
+        }
+
+        // System-calculated fields
+        const totalAmountNeeded = (amountToClients || 0) + (ajoWithdrawalAmount || 0);
+        const currentLDNo = (totalClients || 0) - (ldSolvedToday || 0) - (clientsThatPaidToday || 0);
+
+        try {
+            const report = await BiyeReport.create({
+                ...data,
+                totalAmountNeeded,
+                currentLDNo
+            });
+            return report;
+        } catch (error) {
+            if (error.code === 11000) {
+                throw new DuplicateError('A BIYE report has already been submitted for this branch today');
+            }
+            throw error;
+        }
+    }
+
+    /**
+     * Get reports for a specific branch
+     * @param {String} branchId - Branch ID
+     * @returns {Promise<Array>} List of reports
+     */
+    async getBranchReports(branchId) {
+        return await BiyeReport.find({ branch: branchId }).sort({ reportDate: -1 });
+    }
+
+    /**
+     * Get Head Office report with filters
+     * @param {Object} filters - Search filters (startDate, endDate, branchId)
+     * @returns {Promise<Array>} Aggregated reports
+     */
+    async getHOReport(filters = {}) {
+        const query = {};
+
+        if (filters.branchId) {
+            query.branch = filters.branchId;
+        }
+
+        if (filters.startDate || filters.endDate) {
+            query.reportDate = {};
+            if (filters.startDate) query.reportDate.$gte = new Date(filters.startDate);
+            if (filters.endDate) query.reportDate.$lte = new Date(filters.endDate);
+        }
+
+        // Return populated reports to see branch details
+        return await BiyeReport.find(query)
+            .populate('branch', 'name')
+            .sort({ reportDate: -1, branch: 1 });
+    }
+}
+
+export default new BiyeReportService();
