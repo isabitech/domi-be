@@ -13,7 +13,7 @@ class BiyeReportService {
             ajoWithdrawalAmount,
             totalClients,
             ldSolvedToday,
-            clientsThatPaidToday
+            clientsThatPaidToday,
         } = data;
 
         // Business Logic Validation: ldSolvedToday + clientsThatPaidToday <= totalClients

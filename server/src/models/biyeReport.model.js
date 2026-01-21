@@ -1,3 +1,4 @@
+import { number } from 'joi';
 import mongoose from 'mongoose';
 
 const biyeReportSchema = new mongoose.Schema({
@@ -47,6 +48,19 @@ const biyeReportSchema = new mongoose.Schema({
             values: ['closed', 'properties', 'promise_undertaking', 'police'],
             message: '{VALUE} is not a valid LD resolution method'
         }
+    },
+    totalNoOfNewClientTomorrow: {
+        type: Number,
+        default: 0
+    },
+    totalNoOfOldClientTomorrow: {
+        type: Number,
+        default: 0
+    },
+    totalPreviousSoOwn: {
+        type: Number,
+        default: 0
+
     },
     reportDate: {
         type: Date,
