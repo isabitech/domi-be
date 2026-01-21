@@ -44,7 +44,7 @@ const biyeReportSchema = new mongoose.Schema({
     ldResolutionMethods: {
         type: [String],
         enum: {
-            values: ['closed', 'properties', 'promise_undertaking', 'police'],
+            values: ['closed', 'properties', 'promise_undertaking', 'police','payment'],
             message: '{VALUE} is not a valid LD resolution method'
         }
     },
