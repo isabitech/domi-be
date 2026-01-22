@@ -42,6 +42,11 @@ class BiyeReportController {
         success(res, reports, 'BIYE reports overview retrieved successfully');
 
     }
+    async getTodayReportByBranch(req, res) {
+      const  branchId  = req.user.branchId;
+        const report = await BiyeReportService.getTodayReportByBranch(branchId);
+        success(res, report, 'Today\'s BIYE report retrieved successfully');
+    }
 }
 
 export default new BiyeReportController();

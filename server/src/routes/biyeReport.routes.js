@@ -15,6 +15,14 @@ router.use(protect);
  */
 router.post('/', protect, authorizeBR, tryCatch(BiyeReportController.create));
 
+
+/**
+ * @route   GET /api/v1/biye-reports/today
+ * @desc    Get today's report for the logged-in branch
+ * @access  Branch only
+ */
+router.get('/', protect, authorizeBR, tryCatch(BiyeReportController.getTodayReportByBranch));
+
 /**
  * @route   GET /api/v1/biye-reports/ho
  * @desc    Get all reports (with filters)

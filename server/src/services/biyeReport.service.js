@@ -72,6 +72,11 @@ class BiyeReportService {
             .populate('branch', 'name')
             .sort({ reportDate: -1, branch: 1 });
     }
+    async getTodayReportByBranch(branchId) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        return await BiyeReport.findOne({ branch: branchId, reportDate: today });
+    }
 }
 
 export default new BiyeReportService();
