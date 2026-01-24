@@ -73,10 +73,21 @@ class BiyeReportService {
             .sort({ reportDate: -1, branch: 1 });
     }
     async getTodayReportByBranch(branchId) {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        return await BiyeReport.findOne({ branch: branchId, reportDate: today });
+        const start = new Date();
+        start.setHours(0, 0, 0, 0);
+
+        const end = new Date();
+        end.setHours(23, 59, 59, 999);
+
+        return BiyeReport.find({
+            branch: branchId,
+            reportDate: {
+                $gte: start,
+                $lte: end
+            }
+        });
     }
+
 }
 
 export default new BiyeReportService();
