@@ -87,12 +87,38 @@ class BiyeReportService {
             .populate('branch', 'name')
             .sort({ reportDate: -1, branch: 1 });
     }
-    async getTodayReportByBranch(branchId) {
-        const start = new Date();
-        start.setHours(0, 0, 0, 0);
+    async getTodayReportByBranch(branchId, startDate = null, endDate = null) {
+        let start;
+        let end;
 
-        const end = new Date();
-        end.setHours(23, 59, 59, 999);
+        if (startDate && endDate) {
+            const startTarget = new Date(startDate);
+            const endTarget = new Date(endDate);
+
+            if (isNaN(startTarget.getTime()) || isNaN(endTarget.getTime())) {
+                throw new ValidationError(
+                    "Invalid date format. Use YYYY-MM-DD for startDate and endDate"
+                );
+            }
+
+            start = new Date(startTarget);
+            start.setHours(0, 0, 0, 0);
+
+            end = new Date(endTarget);
+            end.setHours(23, 59, 59, 999);
+        } else if (startDate || endDate) {
+            throw new ValidationError(
+                "Both startDate and endDate must be provided together"
+            );
+        } else {
+            // default: today
+            start = new Date();
+            start.setHours(0, 0, 0, 0);
+
+            end = new Date();
+            end.setHours(23, 59, 59, 999);
+        }
+
         return BiyeReport.find({
             branch: branchId,
             reportDate: {

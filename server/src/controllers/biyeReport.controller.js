@@ -44,15 +44,21 @@ class BiyeReportController {
     }
     async getTodayReportByBranch(req, res) {
         const branchId = req.user.branch;
+        const { startDate, endDate } = req.query;
 
-        const report = await BiyeReportService.getTodayReportByBranch(branchId);
+        const report = await BiyeReportService.getTodayReportByBranch(
+            branchId,
+            startDate,
+            endDate
+        );
 
         if (!report || (Array.isArray(report) && report.length === 0)) {
-            return success(res, null, "No BIYE report submitted for today");
+            return success(res, null, "No BIYE report found for the selected period");
         }
 
-        success(res, report, "Today's BIYE report retrieved successfully");
+        success(res, report, "BIYE report retrieved successfully");
     }
+
 
 }
 
