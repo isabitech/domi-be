@@ -22,7 +22,7 @@ class BiyeReportController {
      */
     async getBranchReports(req, res) {
 
-        const { branchId } = req.params;
+        const branchId = req.user.branch;
 
         // Authorization check: BR can only see their own branch, HO can see any
         if (req.user.role === 'BR' && req.user.branch._id.toString() !== branchId) {
@@ -43,10 +43,17 @@ class BiyeReportController {
 
     }
     async getTodayReportByBranch(req, res) {
-      const  branchId  = req.user.branchId;
+        const branchId = req.user.branch;
+
         const report = await BiyeReportService.getTodayReportByBranch(branchId);
-        success(res, report, 'Today\'s BIYE report retrieved successfully');
+
+        if (!report || (Array.isArray(report) && report.length === 0)) {
+            return success(res, null, "No BIYE report submitted for today");
+        }
+
+        success(res, report, "Today's BIYE report retrieved successfully");
     }
+
 }
 
 export default new BiyeReportController();

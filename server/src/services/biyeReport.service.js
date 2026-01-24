@@ -14,27 +14,42 @@ class BiyeReportService {
             totalClients,
             ldSolvedToday,
             clientsThatPaidToday,
+            branch
         } = data;
 
-        // Business Logic Validation: ldSolvedToday + clientsThatPaidToday <= totalClients
         if (ldSolvedToday + clientsThatPaidToday > totalClients) {
-            throw new ValidationError('The sum of LD solved today and clients that paid today cannot exceed total clients');
+            throw new ValidationError(
+                'The sum of LD solved today and clients that paid today cannot exceed total clients'
+            );
         }
 
-        // System-calculated fields
-        const totalAmountNeeded = (amountToClients || 0) + (ajoWithdrawalAmount || 0);
-        const currentLDNo = (totalClients || 0) - (ldSolvedToday || 0) - (clientsThatPaidToday || 0);
+        const totalAmountNeeded =
+            (amountToClients || 0) + (ajoWithdrawalAmount || 0);
+
+        const currentLDNo =
+            (totalClients || 0) -
+            (ldSolvedToday || 0) -
+            (clientsThatPaidToday || 0);
+
+        // Normalize reportDate to start of today
+        const reportDate = new Date();
+        reportDate.setHours(0, 0, 0, 0);
 
         try {
             const report = await BiyeReport.create({
                 ...data,
+                branch,
+                reportDate,
                 totalAmountNeeded,
                 currentLDNo
             });
+
             return report;
         } catch (error) {
             if (error.code === 11000) {
-                throw new DuplicateError('A BIYE report has already been submitted for this branch today');
+                throw new DuplicateError(
+                    'A BIYE report has already been submitted for this branch today'
+                );
             }
             throw error;
         }
@@ -78,7 +93,6 @@ class BiyeReportService {
 
         const end = new Date();
         end.setHours(23, 59, 59, 999);
-
         return BiyeReport.find({
             branch: branchId,
             reportDate: {
