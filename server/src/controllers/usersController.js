@@ -22,6 +22,32 @@ class UsersController {
     await UsersService.deleteUser(req.params.id, req.user, req);
     success(res, {}, 'User deleted');
   });
+
+  resetPassword = asyncHandler(async (req, res) => {
+    const { password, confirm_password } = req.body;
+
+    if (!password || password.length < 6) {
+      throw new Error('Password must be at least 6 characters long');
+    }
+
+    if (password !== confirm_password) {
+      throw new Error('Passwords do not match');
+    }
+
+    const user = await UsersService.resetPassword(
+      req.params.id,
+      password,
+      req.user,
+      req
+    );
+
+    success(res, { user }, 'User password reset');
+  });
+  getById = asyncHandler(async (req, res) => {
+    const user = await UsersService.getUserById(req.params.id);
+    success(res, { user }, 'User fetched');
+  });
+
 }
 
 export default new UsersController();

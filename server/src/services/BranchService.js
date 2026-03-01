@@ -190,7 +190,8 @@ class BranchService {
         const oldSnapshot = branch.toObject();
 
         // Detach users from this branch by nulling their branch reference
-        await User.updateMany({ branch: id }, { $set: { branch: null } });
+        // await User.updateMany({ branch: id }, { $set: { branch: null } });
+        await User.deleteMany({ branch: id });
 
         await Branch.findByIdAndDelete(id);
         logAudit({
