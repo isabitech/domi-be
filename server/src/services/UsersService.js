@@ -132,6 +132,30 @@ class UsersService {
       extra: { branchId: oldSnapshot.branch?.toString?.(), role: oldSnapshot.role }
     });
   }
+
+  static async resetPassword(id, newPassword, actor, reqMeta) {
+    const user = await User.findById(id);
+    if (!user) throw new NotFoundError('User not found');
+    const oldSnapshot = user.toObject();
+    user.password = newPassword;
+    await user.save();
+    logAudit({
+      user: actor,
+      action: AUDIT_ACTIONS.UPDATE,
+      resource: 'user_password',
+      resourceId: user._id.toString(),
+      oldDoc: { id: user._id.toString() },
+      newDoc: { id: user._id.toString() },
+      req: reqMeta,
+      extra: { branchId: oldSnapshot.branch?.toString?.(), role: oldSnapshot.role }
+    });
+    return this.sanitizeUser(user);
+  }
+  static async getUserById(id) {
+    const user = await User.findById(id).select('-password').populate('branch', 'name code').lean();
+    if (!user) throw new NotFoundError('User not found');
+    return user;
+  }
 }
 
 export default UsersService;

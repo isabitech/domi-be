@@ -22,6 +22,7 @@ import usersRoutes from './routes/usersRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
 import auditRoutes from './routes/auditRoutes.js';
 import metricsRoutes from './routes/metricsRoutes.js';
+import biyeReportRoutes from './routes/biyeReport.routes.js';
 import senatePlaningRoutes from './routes/SenatePlaning.js';
 import { listPermissions, requirePermission } from './utils/permissions.js';
 import errorHandler from './middleware/errorHandler.js';
@@ -144,6 +145,7 @@ app.use(`${API_PREFIX}/efcc`, efccRoutes);
 app.use(`${API_PREFIX}/metrics`, metricsRoutes);
 app.use(`${API_PREFIX}/audit-logs`, auditLimiter, auditRoutes);
 app.use(`${API_PREFIX}/senate-planning`, senatePlaningRoutes);
+app.use(`${API_PREFIX}/biye-reports`, biyeReportRoutes);
 
 // Health check
 app.get(`${API_PREFIX}/health`, (req, res) => {
