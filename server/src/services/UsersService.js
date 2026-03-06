@@ -99,6 +99,9 @@ class UsersService {
     if (payload.role !== undefined) user.role = payload.role;
     if (payload.branchId !== undefined) user.branch = payload.branchId;
     if (payload.status !== undefined) user.isActive = payload.status === 'active';
+    if (payload.password !== undefined) {
+      user.password = payload.password;
+    }
 
     await user.save();
     await user.populate('branch', 'name code');
