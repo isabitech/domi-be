@@ -27,7 +27,8 @@ export const userSchemas = {
       email: Joi.string().email().optional(),
       role: Joi.string().valid('HO', 'BR', 'employee', 'manager', 'admin').optional(),
       branchId: id.allow(null).optional(),
-      status: Joi.string().valid('active', 'inactive', 'suspended').optional()
+      status: Joi.string().valid('active', 'inactive', 'suspended').optional(),
+      password: Joi.string().min(8).optional()
     })
   }),
   delete: Joi.object({ params: Joi.object({ id: id.required() }) }),
