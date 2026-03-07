@@ -89,6 +89,60 @@ class UsersService {
   }
 
 
+  // static async updateUser(id, payload, actor, reqMeta) {
+  //   const user = await User.findById(id);
+  //   if (!user) throw new NotFoundError('User not found');
+
+  //   const oldSnapshot = user.toObject();
+  //   let message = 'User updated';
+
+  //   // Hash password if provided
+  //   if (payload.password) {
+  //     const salt = await bcrypt.genSalt(10);
+  //     payload.password = await bcrypt.hash(payload.password, salt);
+  //     message = 'User updated and password changed';
+  //   }
+
+  //   // Build update object dynamically
+  //   const updateData = {
+  //     ...(payload.name && { name: payload.name.trim() }),
+  //     ...(payload.username && { username: payload.username.trim() }),
+  //     ...(payload.email && { email: payload.email.toLowerCase() }),
+  //     ...(payload.role && { role: payload.role }),
+  //     ...(payload.branchId !== undefined && { branch: payload.branchId }),
+  //     ...(payload.status && {
+  //       isActive: payload.status === 'active',
+  //       status: payload.status
+  //     }),
+  //     ...(payload.password && { password: payload.password }) // password included
+  //   };
+
+  //   // Update user directly
+  //   const updatedUser = await User.findByIdAndUpdate(id, updateData, {
+  //     new: true,
+  //     runValidators: true,
+  //     context: 'query'
+  //   }).populate('branch', 'name code');
+
+  //   const sanitized = UsersService.sanitizeUser(updatedUser);
+
+  //   logAudit({
+  //     user: actor,
+  //     action: AUDIT_ACTIONS.UPDATE,
+  //     resource: 'user',
+  //     resourceId: updatedUser._id.toString(),
+  //     oldDoc: oldSnapshot,
+  //     newDoc: sanitized,
+  //     req: reqMeta,
+  //     extra: {
+  //       branchId: sanitized.branch?.toString?.(),
+  //       role: sanitized.role
+  //     }
+  //   });
+
+  //   sanitized.message = message;
+  //   return sanitized;
+  // }
   static async updateUser(id, payload, actor, reqMeta) {
     const user = await User.findById(id);
     if (!user) throw new NotFoundError('User not found');
@@ -96,54 +150,54 @@ class UsersService {
     const oldSnapshot = user.toObject();
     let message = 'User updated';
 
-    // Hash password if provided
+    // Ensure unique email/username
+    await UsersService.ensureUniqueIdentifiers(payload.email, payload.username, id);
+
+    // Update standard fields
+    const fieldsToUpdate = {};
+    if (payload.name) fieldsToUpdate.name = payload.name.trim();
+    if (payload.username) fieldsToUpdate.username = payload.username.trim();
+    if (payload.email) fieldsToUpdate.email = payload.email.toLowerCase();
+    if (payload.role) fieldsToUpdate.role = payload.role;
+    if (payload.branchId) fieldsToUpdate.branch = payload.branchId;
+    if (payload.status) {
+      fieldsToUpdate.isActive = payload.status === 'active';
+      fieldsToUpdate.status = payload.status;
+    }
+
+    // If password is present, update directly and use save() to trigger hashing
     if (payload.password) {
-      const salt = await bcrypt.genSalt(10);
-      payload.password = await bcrypt.hash(payload.password, salt);
+      user.password = payload.password;
       message = 'User updated and password changed';
     }
 
-    // Build update object dynamically
-    const updateData = {
-      ...(payload.name && { name: payload.name.trim() }),
-      ...(payload.username && { username: payload.username.trim() }),
-      ...(payload.email && { email: payload.email.toLowerCase() }),
-      ...(payload.role && { role: payload.role }),
-      ...(payload.branchId !== undefined && { branch: payload.branchId }),
-      ...(payload.status && {
-        isActive: payload.status === 'active',
-        status: payload.status
-      }),
-      ...(payload.password && { password: payload.password }) // password included
-    };
+    // Apply other updates
+    Object.assign(user, fieldsToUpdate);
 
-    // Update user directly
-    const updatedUser = await User.findByIdAndUpdate(id, updateData, {
-      new: true,
-      runValidators: true,
-      context: 'query'
-    }).populate('branch', 'name code');
+    // Save user (pre-save hook will hash password if it changed)
+    await user.save();
 
-    const sanitized = UsersService.sanitizeUser(updatedUser);
+    // Populate branch info
+    await user.populate('branch', 'name code');
 
+    // Sanitize before returning
+    const sanitized = UsersService.sanitizeUser(user);
+    sanitized.message = message;
+
+    // Log audit
     logAudit({
       user: actor,
       action: AUDIT_ACTIONS.UPDATE,
       resource: 'user',
-      resourceId: updatedUser._id.toString(),
+      resourceId: user._id.toString(),
       oldDoc: oldSnapshot,
       newDoc: sanitized,
       req: reqMeta,
-      extra: {
-        branchId: sanitized.branch?.toString?.(),
-        role: sanitized.role
-      }
+      extra: { branchId: sanitized.branch?.toString?.(), role: sanitized.role }
     });
 
-    sanitized.message = message;
     return sanitized;
   }
-
   static async deleteUser(id, actor, reqMeta) {
     const user = await User.findById(id);
     if (!user) throw new NotFoundError('User not found');
