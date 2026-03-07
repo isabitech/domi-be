@@ -88,34 +88,40 @@ class UsersService {
     return sanitized;
   }
 
-  
+
   static async updateUser(id, payload, actor, reqMeta) {
     const user = await User.findById(id);
     if (!user) throw new NotFoundError('User not found');
 
-    await UsersService.ensureUniqueIdentifiers(payload.email, payload.username, id);
-
-    const updateFields = {};
-
-    if (payload.name !== undefined) updateFields.name = payload.name.trim();
-    if (payload.username !== undefined) updateFields.username = payload.username.trim();
-    if (payload.email !== undefined) updateFields.email = payload.email.toLowerCase();
-    if (payload.role !== undefined) updateFields.role = payload.role;
-    if (payload.branchId !== undefined) updateFields.branch = payload.branchId;
-    if (payload.status !== undefined) updateFields.isActive = payload.status === 'active';
-
+    const oldSnapshot = user.toObject();
     let message = 'User updated';
 
-    if (payload.password !== undefined) {
+    // Hash password if provided
+    if (payload.password) {
       const salt = await bcrypt.genSalt(10);
-      updateFields.password = await bcrypt.hash(payload.password, salt);
+      payload.password = await bcrypt.hash(payload.password, salt);
       message = 'User updated and password changed';
     }
 
-    const updatedUser = await User.findByIdAndUpdate(id, updateFields, {
+    // Build update object dynamically
+    const updateData = {
+      ...(payload.name && { name: payload.name.trim() }),
+      ...(payload.username && { username: payload.username.trim() }),
+      ...(payload.email && { email: payload.email.toLowerCase() }),
+      ...(payload.role && { role: payload.role }),
+      ...(payload.branchId !== undefined && { branch: payload.branchId }),
+      ...(payload.status && {
+        isActive: payload.status === 'active',
+        status: payload.status
+      }),
+      ...(payload.password && { password: payload.password }) // password included
+    };
+
+    // Update user directly
+    const updatedUser = await User.findByIdAndUpdate(id, updateData, {
       new: true,
       runValidators: true,
-      context: 'query' // ensures validators like minlength work
+      context: 'query'
     }).populate('branch', 'name code');
 
     const sanitized = UsersService.sanitizeUser(updatedUser);
@@ -125,7 +131,7 @@ class UsersService {
       action: AUDIT_ACTIONS.UPDATE,
       resource: 'user',
       resourceId: updatedUser._id.toString(),
-      oldDoc: user.toObject(),
+      oldDoc: oldSnapshot,
       newDoc: sanitized,
       req: reqMeta,
       extra: {
@@ -135,7 +141,6 @@ class UsersService {
     });
 
     sanitized.message = message;
-
     return sanitized;
   }
 
