@@ -106,7 +106,7 @@ class UsersService {
 
     let message = 'User updated';
 
-    if (payload.password) {
+    if (payload.password !== undefined) {
       const salt = await bcrypt.genSalt(10);
       updateFields.password = await bcrypt.hash(payload.password, salt);
       message = 'User updated and password changed';
