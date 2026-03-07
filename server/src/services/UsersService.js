@@ -102,8 +102,9 @@ class UsersService {
     if (payload.branchId !== undefined) user.branch = payload.branchId;
     if (payload.status !== undefined) user.isActive = payload.status === 'active';
 
-    if (payload.password !== undefined) {
+    if (payload.password) {
       user.password = payload.password;
+      user.markModified('password'); // tell Mongoose this field changed
       message = 'User updated and password changed';
     }
 
