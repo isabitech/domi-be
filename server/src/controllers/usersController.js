@@ -14,9 +14,9 @@ class UsersController {
   });
 
   update = asyncHandler(async (req, res) => {
-    const payload = req.body; 
+    const payload = req.body;
     const user = await UsersService.updateUser(req.params.id, payload, req.user, req);
-    success(res, { user }, 'User updated');
+    success(res, { user }, user.message);
   });
 
   delete = asyncHandler(async (req, res) => {
