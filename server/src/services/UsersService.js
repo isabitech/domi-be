@@ -89,7 +89,9 @@ class UsersService {
   static async updateUser(id, payload, actor, reqMeta) {
     const user = await User.findById(id);
     if (!user) throw new NotFoundError('User not found');
+
     const oldSnapshot = user.toObject();
+    let message = null;
 
     await UsersService.ensureUniqueIdentifiers(payload.email, payload.username, id);
 
@@ -99,6 +101,7 @@ class UsersService {
     if (payload.role !== undefined) user.role = payload.role;
     if (payload.branchId !== undefined) user.branch = payload.branchId;
     if (payload.status !== undefined) user.isActive = payload.status === 'active';
+
     if (payload.password !== undefined) {
       user.password = payload.password;
       message = 'User updated and password changed';
@@ -106,7 +109,9 @@ class UsersService {
 
     await user.save();
     await user.populate('branch', 'name code');
+
     const sanitized = UsersService.sanitizeUser(user);
+
     logAudit({
       user: actor,
       action: AUDIT_ACTIONS.UPDATE,
@@ -115,10 +120,14 @@ class UsersService {
       oldDoc: oldSnapshot,
       newDoc: sanitized,
       req: reqMeta,
-      extra: { branchId: sanitized.branch?.toString?.(), role: sanitized.role }
-
+      extra: {
+        branchId: sanitized.branch?.toString?.(),
+        role: sanitized.role
+      }
     });
-    sanitized[message ? 'message' : ''] = message || 'User updated';
+
+    sanitized.message = message || 'User updated';
+
     return sanitized;
   }
 
