@@ -101,6 +101,7 @@ class UsersService {
     if (payload.status !== undefined) user.isActive = payload.status === 'active';
     if (payload.password !== undefined) {
       user.password = payload.password;
+      message = 'User updated and password changed';
     }
 
     await user.save();
@@ -115,7 +116,9 @@ class UsersService {
       newDoc: sanitized,
       req: reqMeta,
       extra: { branchId: sanitized.branch?.toString?.(), role: sanitized.role }
+
     });
+    sanitized[message ? 'message' : ''] = message || 'User updated';
     return sanitized;
   }
 
