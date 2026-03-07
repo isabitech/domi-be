@@ -13,7 +13,7 @@ export const userSchemas = {
   }),
   create: Joi.object({
     body: Joi.object({
-      username: Joi.string().alphanum().min(3).max(50).required(),
+      username: Joi.string().min(3).max(50).required(),
       email: Joi.string().email().required(),
       password: Joi.string().min(8).required(),
       role: Joi.string().valid('HO', 'BR', 'employee', 'manager', 'admin').required(),
@@ -23,7 +23,7 @@ export const userSchemas = {
   update: Joi.object({
     params: Joi.object({ id: id.required() }),
     body: Joi.object({
-      username: Joi.string().alphanum().min(3).max(50).optional(),
+      username: Joi.string().min(3).max(50).optional(),
       email: Joi.string().email().optional(),
       role: Joi.string().valid('HO', 'BR', 'employee', 'manager', 'admin').optional(),
       branchId: id.allow(null).optional(),
