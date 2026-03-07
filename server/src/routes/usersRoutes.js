@@ -16,5 +16,7 @@ router.get('/', validate(userSchemas.list), tryCatch(usersController.list));
 router.post('/', validate(userSchemas.create), tryCatch(usersController.create));
 router.put('/:id', validate(userSchemas.update), tryCatch(usersController.update));
 router.delete('/:id', validate(userSchemas.delete), tryCatch(usersController.delete));
+router.post('/:id/reset-password', validate(userSchemas.resetPassword), tryCatch(usersController.resetPassword));
+router.get('/:id', tryCatch(usersController.getById));
 
 export default router;

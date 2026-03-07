@@ -12,7 +12,9 @@ import operationsRoutes from './routes/operationsRoutes.js';
 import registerRoutes from './routes/registerRoutes.js';
 import bankStatementRoutes from './routes/bankStatementRoutes.js';
 import predictionRoutes from './routes/predictionRoutes.js';
+import amountNeedTomorrowRoutes from './routes/amountNeedTomorrowRoutes.js';
 import disbursementRollRoutes from './routes/disbursementRollRoutes.js';
+import efccRoutes from './routes/efccRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
 import reportsRoutes from './routes/reportsRoutes.js';
 import reportsCompatibilityRoutes from './routes/reportsCompatibilityRoutes.js';
@@ -20,6 +22,8 @@ import usersRoutes from './routes/usersRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
 import auditRoutes from './routes/auditRoutes.js';
 import metricsRoutes from './routes/metricsRoutes.js';
+import biyeReportRoutes from './routes/biyeReport.routes.js';
+import senatePlaningRoutes from './routes/SenatePlaning.js';
 import { listPermissions, requirePermission } from './utils/permissions.js';
 import errorHandler from './middleware/errorHandler.js';
 import { success, failure } from './utils/response.js';
@@ -135,9 +139,13 @@ app.use(`${API_PREFIX}/settings`, settingsRoutes);
 app.use(`${API_PREFIX}/registers`, registerRoutes);
 app.use(`${API_PREFIX}/bank-statements`, bankStatementRoutes);
 app.use(`${API_PREFIX}/prediction`, predictionRoutes);
+app.use(`${API_PREFIX}/amount-need-tomorrow`, amountNeedTomorrowRoutes);
 app.use(`${API_PREFIX}/disbursement-roll`, disbursementRollRoutes);
+app.use(`${API_PREFIX}/efcc`, efccRoutes);
 app.use(`${API_PREFIX}/metrics`, metricsRoutes);
 app.use(`${API_PREFIX}/audit-logs`, auditLimiter, auditRoutes);
+app.use(`${API_PREFIX}/senate-planning`, senatePlaningRoutes);
+app.use(`${API_PREFIX}/biye-reports`, biyeReportRoutes);
 
 // Health check
 app.get(`${API_PREFIX}/health`, (req, res) => {
