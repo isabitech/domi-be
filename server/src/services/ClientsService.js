@@ -19,7 +19,11 @@ const SEARCH_FIELDS = [
 class ClientsService {
   static phonePattern = /^[0-9+\-\s()]{7,20}$/;
 
-  static ensurePhone(value, fieldName) {
+  static ensurePhone(value, fieldName, allowNone = false) {
+    const normalized = String(value).trim();
+    if (allowNone && normalized.toLowerCase() === 'none') {
+      return;
+    }
     if (!value || !ClientsService.phonePattern.test(String(value).trim())) {
       throw new ValidationError(`${fieldName} has invalid format`);
     }
@@ -94,7 +98,9 @@ class ClientsService {
 
     if (data.clientPhone !== undefined) ClientsService.ensurePhone(data.clientPhone, 'clientPhone');
     if (data.guarantorPhone !== undefined) ClientsService.ensurePhone(data.guarantorPhone, 'guarantorPhone');
-    if (data.partnerReferrerPhone !== undefined) ClientsService.ensurePhone(data.partnerReferrerPhone, 'partnerReferrerPhone');
+    if (data.partnerReferrerPhone !== undefined) {
+      ClientsService.ensurePhone(data.partnerReferrerPhone, 'partnerReferrerPhone', true);
+    }
 
     if (data.status && !['active', 'inactive'].includes(data.status)) {
       throw new ValidationError('status must be active or inactive');

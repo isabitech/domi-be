@@ -2,6 +2,10 @@ import Joi from 'joi';
 
 const id = Joi.string().hex().length(24);
 const phone = Joi.string().pattern(/^[0-9+\-\s()]{7,20}$/);
+const partnerPhone = Joi.alternatives().try(
+  phone,
+  Joi.string().trim().valid('None', 'none', 'NONE')
+);
 
 export const clientsSchemas = {
   list: Joi.object({
@@ -23,7 +27,7 @@ export const clientsSchemas = {
       guarantorPhone: phone.required(),
       guarantorNickName: Joi.string().trim().allow('').optional(),
       partnerReferrerName: Joi.string().trim().required(),
-      partnerReferrerPhone: phone.required(),
+      partnerReferrerPhone: partnerPhone.required(),
       status: Joi.string().valid('active', 'inactive').optional(),
       branchId: id.optional()
     })
@@ -39,7 +43,7 @@ export const clientsSchemas = {
       guarantorPhone: phone.optional(),
       guarantorNickName: Joi.string().trim().allow('').optional(),
       partnerReferrerName: Joi.string().trim().optional(),
-      partnerReferrerPhone: phone.optional(),
+      partnerReferrerPhone: partnerPhone.optional(),
       status: Joi.string().valid('active', 'inactive').optional(),
       branchId: id.optional()
     }).min(1)
