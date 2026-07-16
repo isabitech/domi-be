@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import Branch from '../models/Branch.js';
 import User from '../models/User.js';
+import Client from '../models/Client.js';
 import { logAudit, AUDIT_ACTIONS } from '../utils/audit.js';
 import { DuplicateError, NotFoundError, ValidationError } from '../utils/errors.js';
 import { parsePagination, buildPaginationMeta } from '../utils/pagination.js';
@@ -25,11 +26,29 @@ class BranchService {
 
         const total = await Branch.countDocuments(searchFilter);
 
+        const branchIds = branches.map((branch) => branch._id);
+        const clientCounts = branchIds.length
+            ? await Client.aggregate([
+                { $match: { branch: { $in: branchIds } } },
+                { $group: { _id: '$branch', totalClients: { $sum: 1 } } }
+            ])
+            : [];
+
+        const clientCountMap = new Map(
+            clientCounts.map((item) => [item._id.toString(), item.totalClients || 0])
+        );
+
+        const enrichedBranches = branches.map((branchDoc) => {
+            const branch = branchDoc.toObject();
+            branch.totalClients = clientCountMap.get(branch._id.toString()) || 0;
+            return branch;
+        });
+
         return {
-            count: branches.length,
+            count: enrichedBranches.length,
             total,
             pagination: buildPaginationMeta(total, page, limit),
-            branches
+            branches: enrichedBranches
         };
     }
 

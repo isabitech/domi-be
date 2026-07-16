@@ -6,6 +6,7 @@ import LoanRegister from '../models/LoanRegister.js';
 import SavingsRegister from '../models/SavingsRegister.js';
 import DisbursementRoll from '../models/DisbursementRoll.js';
 import Branch from '../models/Branch.js';
+import Client from '../models/Client.js';
 
 class DashboardService {
   // Branch-level dashboard
@@ -434,6 +435,28 @@ static async hoDashboard(req) {
     0
   );
 
+  const clientMatch = {};
+  if (branchId) {
+    clientMatch.branch =
+      branchId instanceof mongoose.Types.ObjectId
+        ? branchId
+        : new mongoose.Types.ObjectId(branchId);
+  }
+
+  const clientAggPipeline = [];
+  if (Object.keys(clientMatch).length) {
+    clientAggPipeline.push({ $match: clientMatch });
+  }
+  clientAggPipeline.push({ $group: { _id: '$branch', totalClients: { $sum: 1 } } });
+
+  const clientAgg = await Client.aggregate(clientAggPipeline);
+  const clientCountMap = new Map(
+    clientAgg.map((row) => [row._id.toString(), row.totalClients || 0])
+  );
+  const totalClients = clientAgg.reduce((sum, row) => sum + (row.totalClients || 0), 0);
+
+  summaryAccumulator.totalClients = totalClients;
+
   const consolidatedSummary = summaryAccumulator.totalOperations
     ? {
         totalSavings: summaryAccumulator.totalSavings,
@@ -444,6 +467,7 @@ static async hoDashboard(req) {
         totalOnlineCIH: summaryAccumulator.totalOnlineCIH,
         totalTSO: summaryAccumulator.totalTSO,
         totalFrmHO: summaryAccumulator.totalFrmHO,
+        totalClients: summaryAccumulator.totalClients,
         totalDisbursementRollNo:
           summaryAccumulator.totalDisbursementRollNo,
         totalCollections:
@@ -464,6 +488,7 @@ static async hoDashboard(req) {
         totalOnlineCIH: 0,
         totalTSO: 0,
         totalFrmHO: 0,
+        totalClients: summaryAccumulator.totalClients,
         totalDisbursementRollNo: 0,
         totalCollections: 0,
         activeBranches: [],
@@ -478,6 +503,7 @@ static async hoDashboard(req) {
       totalSavings: item.totalSavings,
       totalLoanCollection: item.totalLoanCollection,
       totalDisbursements: item.totalDisbursements,
+      totalClients: clientCountMap.get(item._id.toString()) || 0,
       avgOnlineCIH: item.operationDays
         ? item.onlineCIHSum / item.operationDays
         : 0,
@@ -489,7 +515,7 @@ static async hoDashboard(req) {
 
   return {
     branches,
-    consolidatedSummary: summaryAccumulator,
+    consolidatedSummary,
     branchPerformance
   };
 }
