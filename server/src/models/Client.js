@@ -46,6 +46,11 @@ const clientSchema = new mongoose.Schema({
     required: [true, 'Partner/Referrer phone is required'],
     trim: true
   },
+  partnerReferrerNickName: {
+    type: String,
+    trim: true,
+    default: ''
+  },
   status: {
     type: String,
     enum: ['active', 'inactive'],
@@ -80,7 +85,8 @@ clientSchema.index({
   guarantorPhone: 'text',
   guarantorNickName: 'text',
   partnerReferrerName: 'text',
-  partnerReferrerPhone: 'text'
+  partnerReferrerPhone: 'text',
+  partnerReferrerNickName: 'text'
 });
 
 export default mongoose.model('Client', clientSchema);

@@ -28,6 +28,7 @@ export const clientsSchemas = {
       guarantorNickName: Joi.string().trim().allow('').optional(),
       partnerReferrerName: Joi.string().trim().required(),
       partnerReferrerPhone: partnerPhone.required(),
+      partnerReferrerNickName: Joi.string().trim().allow('', null).optional(),
       status: Joi.string().valid('active', 'inactive').optional(),
       branchId: id.optional()
     })
@@ -44,6 +45,7 @@ export const clientsSchemas = {
       guarantorNickName: Joi.string().trim().allow('').optional(),
       partnerReferrerName: Joi.string().trim().optional(),
       partnerReferrerPhone: partnerPhone.optional(),
+      partnerReferrerNickName: Joi.string().trim().allow('', null).optional(),
       status: Joi.string().valid('active', 'inactive').optional(),
       branchId: id.optional()
     }).min(1)

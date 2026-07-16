@@ -13,7 +13,8 @@ const SEARCH_FIELDS = [
   'guarantorPhone',
   'guarantorNickName',
   'partnerReferrerName',
-  'partnerReferrerPhone'
+  'partnerReferrerPhone',
+  'partnerReferrerNickName'
 ];
 
 class ClientsService {
@@ -70,12 +71,17 @@ class ClientsService {
       'guarantorNickName',
       'partnerReferrerName',
       'partnerReferrerPhone',
+      'partnerReferrerNickName',
       'status'
     ];
 
     fields.forEach((field) => {
       if (payload[field] !== undefined) {
-        data[field] = typeof payload[field] === 'string' ? payload[field].trim() : payload[field];
+        if (field === 'partnerReferrerNickName' && payload[field] === null) {
+          data[field] = '';
+        } else {
+          data[field] = typeof payload[field] === 'string' ? payload[field].trim() : payload[field];
+        }
       }
     });
 
