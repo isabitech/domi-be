@@ -72,7 +72,8 @@ class ClientsService {
       'partnerReferrerName',
       'partnerReferrerPhone',
       'partnerReferrerNickName',
-      'status'
+      'status',
+      'clientCategory'
     ];
 
     fields.forEach((field) => {
@@ -110,6 +111,10 @@ class ClientsService {
 
     if (data.status && !['active', 'inactive'].includes(data.status)) {
       throw new ValidationError('status must be active or inactive');
+    }
+
+    if (data.clientCategory && !['loan_only', 'savings_only', 'loan_and_savings'].includes(data.clientCategory)) {
+      throw new ValidationError('clientCategory must be one of loan_only, savings_only, loan_and_savings');
     }
 
     return data;

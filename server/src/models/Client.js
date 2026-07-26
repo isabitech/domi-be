@@ -56,6 +56,12 @@ const clientSchema = new mongoose.Schema({
     enum: ['active', 'inactive'],
     default: 'active'
   },
+  clientCategory: {
+    type: String,
+    enum: ['loan_only', 'savings_only', 'loan_and_savings'],
+    trim: true,
+    default: undefined
+  },
   branch: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Branch',
