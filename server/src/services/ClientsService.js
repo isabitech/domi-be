@@ -73,7 +73,8 @@ class ClientsService {
       'partnerReferrerPhone',
       'partnerReferrerNickName',
       'status',
-      'clientCategory'
+      'clientCategory',
+      'disbursementDate'
     ];
 
     fields.forEach((field) => {
@@ -107,6 +108,18 @@ class ClientsService {
     if (data.guarantorPhone !== undefined) ClientsService.ensurePhone(data.guarantorPhone, 'guarantorPhone');
     if (data.partnerReferrerPhone !== undefined) {
       ClientsService.ensurePhone(data.partnerReferrerPhone, 'partnerReferrerPhone', true);
+    }
+
+    if (data.disbursementDate !== undefined) {
+      if (data.disbursementDate === null || data.disbursementDate === '') {
+        data.disbursementDate = null;
+      } else if (typeof data.disbursementDate === 'string') {
+        const parsedDate = new Date(data.disbursementDate);
+        if (Number.isNaN(parsedDate.getTime())) {
+          throw new ValidationError('disbursementDate must be a valid date');
+        }
+        data.disbursementDate = parsedDate;
+      }
     }
 
     if (data.status && !['active', 'inactive'].includes(data.status)) {
@@ -173,6 +186,19 @@ class ClientsService {
     };
   }
 
+  static async getById(req) {
+    ClientsService.enforceRole(req.user);
+
+    const client = await Client.findById(req.params.id).populate('branch', 'name code');
+    if (!client) throw new NotFoundError('Client not found');
+
+    if (!ClientsService.canAccessClient(req.user, client)) {
+      throw new ForbiddenError('Not allowed to access this client');
+    }
+
+    return { client: ClientsService.mapClient(client) };
+  }
+
   static async create(req) {
     ClientsService.enforceRole(req.user);
 
@@ -186,7 +212,9 @@ class ClientsService {
       updatedBy: req.user.id
     });
 
-    return { client: { _id: client._id } };
+    await client.populate('branch', 'name code');
+
+    return { client: ClientsService.mapClient(client) };
   }
 
   static async update(req) {

@@ -17,6 +17,9 @@ export const clientsSchemas = {
       status: Joi.string().valid('active', 'inactive').optional()
     })
   }),
+  getById: Joi.object({
+    params: Joi.object({ id: id.required() })
+  }),
   create: Joi.object({
     body: Joi.object({
       union: Joi.string().trim().required(),
@@ -31,6 +34,7 @@ export const clientsSchemas = {
       partnerReferrerNickName: Joi.string().trim().allow('', null).optional(),
       clientCategory: Joi.string().valid('loan_only', 'savings_only', 'loan_and_savings').optional(),
       status: Joi.string().valid('active', 'inactive').optional(),
+      disbursementDate: Joi.alternatives().try(Joi.date().iso(), Joi.string().trim().allow('').optional(), Joi.valid(null)).optional(),
       branchId: id.optional()
     })
   }),
@@ -49,6 +53,7 @@ export const clientsSchemas = {
       partnerReferrerNickName: Joi.string().trim().allow('', null).optional(),
       status: Joi.string().valid('active', 'inactive').optional(),
       clientCategory: Joi.string().valid('loan_only', 'savings_only', 'loan_and_savings').optional(),
+      disbursementDate: Joi.alternatives().try(Joi.date().iso(), Joi.string().trim().allow('').optional(), Joi.valid(null)).optional(),
       branchId: id.optional()
     }).min(1)
   }),

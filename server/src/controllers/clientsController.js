@@ -8,6 +8,11 @@ class ClientsController {
     success(res, data, 'Clients fetched successfully');
   });
 
+  getById = asyncHandler(async (req, res) => {
+    const data = await ClientsService.getById(req);
+    success(res, data, 'Client fetched successfully');
+  });
+
   create = asyncHandler(async (req, res) => {
     const data = await ClientsService.create(req);
     success(res, data, 'Client created successfully', 201);

@@ -62,6 +62,10 @@ const clientSchema = new mongoose.Schema({
     trim: true,
     default: undefined
   },
+  disbursementDate: {
+    type: Date,
+    default: null
+  },
   branch: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Branch',

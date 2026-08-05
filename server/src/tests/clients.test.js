@@ -121,4 +121,55 @@ describe('Clients API', () => {
     expect(updateRes.body.success).toBe(true);
     expect(updateRes.body.data.client.clientCategory).toBe('savings_only');
   });
+
+  test('should persist disbursementDate for create, fetch, and update flows', async () => {
+    const branch = await Branch.create({ name: 'Lagos Mainland', code: 'LMB001' });
+    const hoUser = await User.create({
+      name: 'HO User',
+      email: 'ho@test.com',
+      password: 'Passw0rd!',
+      role: 'HO',
+      branch: branch._id
+    });
+
+    const token = generateToken(hoUser._id);
+    const createRes = await request(app)
+      .post('/api/v1/clients')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        union: 'PRAISE THY LORD',
+        clientName: 'FAVOUR HADASSAH',
+        clientPhone: '08025000000',
+        clientNickName: 'HADA',
+        guarantorName: 'FAVOUR HADASSAH',
+        guarantorPhone: '08025111111',
+        guarantorNickName: 'HADA',
+        partnerReferrerName: 'FAVOUR HADASSAH',
+        partnerReferrerPhone: '08025222222',
+        partnerReferrerNickName: 'HADA',
+        status: 'active',
+        disbursementDate: '2026-10-15',
+        branchId: branch._id.toString()
+      });
+
+    expect(createRes.status).toBe(201);
+    const clientId = createRes.body.data.client._id;
+
+    const detailRes = await request(app)
+      .get(`/api/v1/clients/${clientId}`)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(detailRes.status).toBe(200);
+    expect(detailRes.body.success).toBe(true);
+    expect(new Date(detailRes.body.data.client.disbursementDate).getTime()).toBe(new Date('2026-10-15T00:00:00.000Z').getTime());
+
+    const updateRes = await request(app)
+      .put(`/api/v1/clients/${clientId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ disbursementDate: '2026-11-20' });
+
+    expect(updateRes.status).toBe(200);
+    expect(updateRes.body.success).toBe(true);
+    expect(new Date(updateRes.body.data.client.disbursementDate).getTime()).toBe(new Date('2026-11-20T00:00:00.000Z').getTime());
+  });
 });

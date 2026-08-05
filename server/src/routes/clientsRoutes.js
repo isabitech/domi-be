@@ -10,8 +10,9 @@ const router = express.Router();
 router.use(protect);
 
 router.get('/', validate(clientsSchemas.list), tryCatch(clientsController.list));
-router.post('/', validate(clientsSchemas.create), tryCatch(clientsController.create));
 router.get('/summary', validate(clientsSchemas.summary), tryCatch(clientsController.summary));
+router.get('/:id', validate(clientsSchemas.getById), tryCatch(clientsController.getById));
+router.post('/', validate(clientsSchemas.create), tryCatch(clientsController.create));
 router.put('/:id', validate(clientsSchemas.update), tryCatch(clientsController.update));
 router.delete('/:id', validate(clientsSchemas.delete), tryCatch(clientsController.delete));
 
